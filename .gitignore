@@ -1,15 +1,15 @@
 # Ignore all pipeline data files, keep directory markers
-00-input/*
-01-validate/*
-02-analyze-dpi/*
-03-split-pages/*
-04-rasterize-lowdpi/*
-05-upscale/*
-06-rebuild-pages/*
-07-merge-pages/*
-08-normalize-pdf/*
-09-preflight/*
-10-output/*
+00-input/**
+01-validate/**
+02-analyze-dpi/**
+03-split-pages/**
+04-rasterize-lowdpi/**
+05-upscale/**
+06-rebuild-pages/**
+07-merge-pages/**
+08-normalize-pdf/**
+09-preflight/**
+10-output/**
 
 !.gitignore
 !*/
