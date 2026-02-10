@@ -7,5 +7,4 @@ if [[ ! -d .venv ]]; then
 fi
 
 . .venv/bin/activate
-export PYTHONPATH="$(pwd)/compat${PYTHONPATH:+:$PYTHONPATH}"
 exec python bin/upscale-images.py "$@"

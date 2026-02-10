@@ -28,6 +28,16 @@ def main():
 
     try:
         import torch
+        import torchvision.transforms.functional as tvf
+        import types
+        # Shim for older BasicSR expecting torchvision.transforms.functional_tensor
+        try:
+            import torchvision.transforms.functional_tensor  # noqa: F401
+        except ModuleNotFoundError:
+            shim = types.ModuleType("torchvision.transforms.functional_tensor")
+            shim.__dict__.update(tvf.__dict__)
+            sys.modules["torchvision.transforms.functional_tensor"] = shim
+
         import cv2
         from basicsr.archs.rrdbnet_arch import RRDBNet
         from realesrgan import RealESRGANer
