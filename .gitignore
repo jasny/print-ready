@@ -4,10 +4,11 @@
 02-analyze-dpi/**
 03-extract-images/**
 04-upscale-images/**
-05-replace-images/**
-06-normalize-pdf/**
-07-preflight/**
-08-output/**
+05-verify-images/**
+06-replace-images/**
+07-normalize-pdf/**
+08-preflight/**
+09-output/**
 
 !.gitignore
 !*/
@@ -16,9 +17,8 @@
 !02-analyze-dpi/.gitkeep
 !03-extract-images/.gitkeep
 !04-upscale-images/.gitkeep
-!05-replace-images/.gitkeep
-!06-normalize-pdf/.gitkeep
-!07-preflight/.gitkeep
-!08-output/.gitkeep
-.venv/
-weights/
+!05-verify-images/.gitkeep
+!06-replace-images/.gitkeep
+!07-normalize-pdf/.gitkeep
+!08-preflight/.gitkeep
+!09-output/.gitkeep

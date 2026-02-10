@@ -37,10 +37,11 @@ The core principles are:
 02-analyze-dpi/
 03-extract-images/
 04-upscale-images/
-05-replace-images/
-06-normalize-pdf/
-07-preflight/
-08-output/
+05-verify-images/
+06-replace-images/
+07-normalize-pdf/
+08-preflight/
+09-output/
 ```
 
 Each step reads only from earlier steps and writes only to its own folder.
@@ -60,6 +61,7 @@ Image-based outputs are grouped in a folder named after the document:
 ```
 03-extract-images/boek/...
 04-upscale-images/boek/...
+05-verify-images/boek/...
 ```
 
 ## Step-by-step workflow
@@ -132,14 +134,14 @@ Effective DPI = pixel resolution of a raster image relative to the physical size
 If **no low-DPI images are found** in step 02:
 
 * Steps **03**, **04**, and **05** are skipped.
-* The pipeline continues directly with **step 06 (normalize PDF)** using the original PDF.
+* The pipeline continues directly with **step 07 (normalize PDF)** using the original PDF.
 
 In other words:
 
 ```
 02-analyze-dpi
-   ├─ low-DPI images found → 03 → 04 → 05 → 06 → 07 → 08
-   └─ no low-DPI images    → 06 → 07 → 08
+   ├─ low-DPI images found → 03 → 04 → 05 → 06 → 07 → 08 → 09
+   └─ no low-DPI images    → 07 → 08 → 09
 ```
 
 This ensures:
@@ -183,7 +185,6 @@ Upscale only the extracted images so effective resolution meets or exceeds targe
 
 ```
 04-upscale-images/boek/obj-<object>-<id>.up.png
-04-upscale-images/boek.upscale.csv
 ```
 
 **Fail if**
@@ -191,7 +192,19 @@ Upscale only the extracted images so effective resolution meets or exceeds targe
 * Upscaler fails
 * Output dimensions do not match expected scale
 
-### 05-replace-images (conditional)
+### 05-verify-images (conditional)
+
+**Purpose**
+Verify that upscaled images meet the target DPI. Copies any that still fall short.
+
+**Outputs**
+
+```
+05-verify-images/boek.verify.csv
+05-verify-images/boek/obj-<object>-<id>.up.png
+```
+
+### 06-replace-images (conditional)
 
 **Purpose**
 Replace the original low-DPI image objects in the PDF with the upscaled versions, preserving vector content.
@@ -199,11 +212,11 @@ Replace the original low-DPI image objects in the PDF with the upscaled versions
 **Outputs**
 
 ```
-05-replace-images/boek.replaced.pdf
-05-replace-images/boek.replace.txt
+06-replace-images/boek.replaced.pdf
+06-replace-images/boek.replace.txt
 ```
 
-### 06-normalize-pdf
+### 07-normalize-pdf
 
 **Purpose**
 Prepare final print-deliverable PDF.
@@ -218,11 +231,11 @@ Prepare final print-deliverable PDF.
 **Outputs**
 
 ```
-06-normalize-pdf/boek.print.pdf
-06-normalize-pdf/boek.normalize.txt
+07-normalize-pdf/boek.print.pdf
+07-normalize-pdf/boek.normalize.txt
 ```
 
-### 07-preflight
+### 08-preflight
 
 **Purpose**
 Final verification.
@@ -238,7 +251,7 @@ Final verification.
 **Outputs**
 
 ```
-07-preflight/boek.preflight.txt
+08-preflight/boek.preflight.txt
 ```
 
 **Fail if**
@@ -246,7 +259,7 @@ Final verification.
 * Page sizes differ
 * Low-DPI issues remain
 
-### 08-output
+### 09-output
 
 **Purpose**
 Final deliverables only.
@@ -254,9 +267,9 @@ Final deliverables only.
 **Contents**
 
 ```
-08-output/boek.print.pdf
-08-output/boek.preflight.txt
-08-output/boek.dpi.csv
+09-output/boek.print.pdf
+09-output/boek.preflight.txt
+09-output/boek.dpi.csv
 ```
 
 Only this folder is sent to the printer.
