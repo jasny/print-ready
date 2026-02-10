@@ -28,7 +28,8 @@ def main():
     base_name = input_pdf.stem
     up_dir = Path("04-upscale-images") / base_name
     resize_dir = Path("06-resize-images") / base_name
-    output_dir = Path("07-replace-images")
+    smask_dir = Path("07-resize-smasks") / base_name
+    output_dir = Path("08-replace-images")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     out_pdf = output_dir / f"{base_name}.replaced.pdf"
@@ -58,6 +59,7 @@ def main():
     with pikepdf.open(input_pdf) as pdf, report_file.open("w") as rep:
         rep.write(f"Input: {input_pdf}\n")
         rep.write(f"Replacements: {len(replacements)}\n")
+        smask_replaced = 0
         for (obj_id, gen), img_path in replacements.items():
             try:
                 obj = pdf.get_object((obj_id, gen))
@@ -81,6 +83,25 @@ def main():
                 obj.write(data, filter=pikepdf.Name("/FlateDecode"))
                 rep.write(f"REPLACED obj {obj_id} {gen} -> {img_path}\n")
 
+            # Replace smask if available
+            smask_obj = obj.get("/SMask")
+            if smask_obj is not None and smask_dir.is_dir():
+                smask_path = smask_dir / f"obj-{smask_obj.objgen[0]}-{smask_obj.objgen[1]}.up.png"
+                if smask_path.is_file():
+                    with Image.open(smask_path) as sm:
+                        if sm.mode != "L":
+                            sm = sm.convert("L")
+                        smask_obj.Type = pikepdf.Name("/XObject")
+                        smask_obj.Subtype = pikepdf.Name("/Image")
+                        smask_obj.Width = sm.width
+                        smask_obj.Height = sm.height
+                        smask_obj.BitsPerComponent = 8
+                        smask_obj.ColorSpace = pikepdf.Name("/DeviceGray")
+                        smask_obj.write(sm.tobytes(), filter=pikepdf.Name("/FlateDecode"))
+                        smask_replaced += 1
+                        rep.write(f"REPLACED smask {smask_obj.objgen[0]} {smask_obj.objgen[1]} -> {smask_path}\n")
+
+        rep.write(f"SMasks replaced: {smask_replaced}\n")
         pdf.save(out_pdf)
 
     print(f"Wrote {out_pdf}")

@@ -6,10 +6,11 @@
 04-upscale-images/**
 05-verify-images/**
 06-resize-images/**
-07-replace-images/**
-08-normalize-pdf/**
-09-preflight/**
-10-output/**
+07-resize-smasks/**
+08-replace-images/**
+09-normalize-pdf/**
+10-preflight/**
+11-output/**
 
 !.gitignore
 !*/
@@ -20,7 +21,8 @@
 !04-upscale-images/.gitkeep
 !05-verify-images/.gitkeep
 !06-resize-images/.gitkeep
-!07-replace-images/.gitkeep
-!08-normalize-pdf/.gitkeep
-!09-preflight/.gitkeep
-!10-output/.gitkeep
+!07-resize-smasks/.gitkeep
+!08-replace-images/.gitkeep
+!09-normalize-pdf/.gitkeep
+!10-preflight/.gitkeep
+!11-output/.gitkeep
