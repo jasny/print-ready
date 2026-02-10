@@ -46,6 +46,7 @@ pdfimages -list "$input_pdf" | awk -v target="$target_dpi" '
     id=$12
     x=$13
     y=$14
+    if (type == "smask") next
     if (x == "" || y == "" || object == "" || id == "") next
     min_ppi = (x+0 < y+0) ? x+0 : y+0
     low = ((x+0 < target || y+0 < target) ? 1 : 0)
