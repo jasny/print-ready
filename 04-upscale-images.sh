@@ -28,7 +28,6 @@ base_name="${base_name%.*}"
 low_csv="02-analyze-dpi/${base_name}.lowdpi.images.csv"
 input_dir="03-extract-images/${base_name}"
 output_dir="04-upscale-images/${base_name}"
-report_csv="04-upscale-images/${base_name}.upscale.csv"
 
 mkdir -p "$output_dir"
 
@@ -48,10 +47,30 @@ if [[ "${FORCE_CPU:-}" != "1" ]]; then
     gpu_id="${GPU_ID}"
   else
     if command -v vulkaninfo >/dev/null 2>&1; then
-      gpu_count="$(vulkaninfo --summary 2>/dev/null | awk '/^GPU[0-9]+:/' | wc -l)"
+      gpu_map="$(vulkaninfo --summary 2>/dev/null | awk '
+        function emit() {
+          if (id != "" && type != "PHYSICAL_DEVICE_TYPE_CPU") {
+            label = (name != "" ? name : (vendor != "" ? vendor : "Unknown GPU"))
+            print "GPU" id ": " label
+          }
+        }
+        /^GPU[0-9]+:/ {
+          emit()
+          gsub(/GPU|:/, "", $1)
+          id=$1; name=""; type=""; vendor=""
+          next
+        }
+        /deviceName/ {sub(/.*= /, "", $0); name=$0}
+        /deviceType/ {sub(/.*= /, "", $0); type=$0}
+        /vendorID/ {sub(/.*= /, "", $0); vendor=$0}
+        END { emit() }
+      ')"
+      gpu_count="$(printf '%s\n' "$gpu_map" | grep -c '^GPU' || true)"
       if [[ "$gpu_count" -eq 1 ]]; then
-        gpu_id=0
+        gpu_id="$(printf '%s\n' "$gpu_map" | sed -E 's/^GPU([0-9]+):.*/\\1/')"
       else
+        echo "Available GPUs:" >&2
+        printf '%s\n' "$gpu_map" >&2
         echo "ERROR: GPU_ID is required when multiple GPUs are present." >&2
         exit 1
       fi
@@ -65,14 +84,13 @@ fi
 target_dpi="${TARGET_DPI:-300}"
 max_upscale="${MAX_UPSCALE:-4.0}"
 model_name="${UPSCALER_MODEL:-realesrgan-x4plus}"
+tile_size="${TILE_SIZE:-0}"
 extra_args="${REAL_ESRGAN_ARGS:-}"
 
 if [[ "${FORCE_CPU:-}" == "1" ]]; then
   echo "FORCE_CPU=1 set. Real-ESRGAN will use Vulkan device 0 (may be llvmpipe)." >&2
   gpu_id=0
 fi
-
-printf 'image_key,object,id,min_ppi,scale_required,esrgan_scale,final_scale,model,gpu_id\n' > "$report_csv"
 
 while IFS=, read -r page image_key object id x_ppi y_ppi min_ppi width height color enc type low_dpi; do
   if [[ "$image_key" == "image_key" || -z "$image_key" ]]; then
@@ -102,7 +120,7 @@ while IFS=, read -r page image_key object id x_ppi y_ppi min_ppi width height co
 
   echo "Upscaling: $src_file -> $final_out (scale $esrgan_scale, gpu $gpu_id)" >&2
   tmp_err="$(mktemp)"
-  realesrgan-ncnn-vulkan -i "$src_file" -o "$tmp_out" -s "$esrgan_scale" -n "$model_name" -g "$gpu_id" -f png $extra_args 2> "$tmp_err"
+  realesrgan-ncnn-vulkan -i "$src_file" -o "$tmp_out" -s "$esrgan_scale" -n "$model_name" -g "$gpu_id" -t "$tile_size" -f png $extra_args 2> "$tmp_err"
 
   if [[ ! -s "$tmp_out" ]]; then
     echo "ERROR: Real-ESRGAN failed for $image_key" >&2
@@ -128,8 +146,4 @@ while IFS=, read -r page image_key object id x_ppi y_ppi min_ppi width height co
     exit 1
   fi
 
-  printf '%s,%s,%s,%s,%.4f,%d,%.4f,%s,%s\n' "$image_key" "$object" "$id" "$min_ppi" "$scale_required" "$esrgan_scale" "$final_scale" "$model_name" "$gpu_id" >> "$report_csv"
-
 done < "$low_csv"
-
-printf 'Wrote %s\n' "$report_csv"
