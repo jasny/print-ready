@@ -233,6 +233,7 @@ Resize soft masks (SMask) to match the resized image dimensions.
 
 **Purpose**
 Replace the original low-DPI image objects in the PDF with the upscaled versions, preserving vector content.
+Replacement images are converted to **CMYK** to avoid color conversion during normalization.
 
 **Outputs**
 
@@ -294,7 +295,7 @@ RASTERIZE_DPI=400
 MAX_UPSCALE=4.0
 UPSCALER_MODEL=RealESRGAN_x4plus
 IMAGE_FORMAT=png
-PDF_STANDARD=PDF/X-1a
+PDF_STANDARD=PDF/X-4
 COLOR_PROFILE=printer.icc
 ```
 

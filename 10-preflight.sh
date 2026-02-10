@@ -26,7 +26,7 @@ if [[ ! -f "$src_pdf" ]]; then
 fi
 
 target_dpi="${TARGET_DPI:-300}"
-pdf_standard="${PDF_STANDARD:-PDF/X-1a}"
+pdf_standard="${PDF_STANDARD:-PDF/X-4}"
 color_profile="${COLOR_PROFILE:-}"
 
 failures=()

@@ -68,18 +68,24 @@ def main():
                 continue
 
             with Image.open(img_path) as im:
-                if im.mode not in ("RGB", "L"):
-                    im = im.convert("RGB")
+                if im.mode == "L":
+                    out_mode = "L"
+                    im = im.convert("L")
+                else:
+                    out_mode = "CMYK"
+                    im = im.convert("CMYK")
                 data = im.tobytes()
                 obj.Type = pikepdf.Name("/XObject")
                 obj.Subtype = pikepdf.Name("/Image")
                 obj.Width = im.width
                 obj.Height = im.height
                 obj.BitsPerComponent = 8
-                if im.mode == "L":
+                if out_mode == "L":
                     obj.ColorSpace = pikepdf.Name("/DeviceGray")
                 else:
-                    obj.ColorSpace = pikepdf.Name("/DeviceRGB")
+                    obj.ColorSpace = pikepdf.Name("/DeviceCMYK")
+                if "/Matte" in obj:
+                    del obj["/Matte"]
                 obj.write(data)
                 rep.write(f"REPLACED obj {obj_id} {gen} -> {img_path}\n")
 
@@ -102,6 +108,16 @@ def main():
                         rep.write(f"REPLACED smask {smask_obj.objgen[0]} {smask_obj.objgen[1]} -> {smask_path}\n")
 
         rep.write(f"SMasks replaced: {smask_replaced}\n")
+        matte_removed = 0
+        for obj in pdf.objects:
+            try:
+                if obj.get("/Subtype") == pikepdf.Name("/Image") and "/Matte" in obj:
+                    del obj["/Matte"]
+                    matte_removed += 1
+            except Exception:
+                continue
+        if matte_removed:
+            rep.write(f"Removed Matte entries: {matte_removed}\n")
         pdf.save(out_pdf)
 
     print(f"Wrote {out_pdf}")
