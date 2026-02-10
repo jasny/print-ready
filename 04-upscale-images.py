@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
-import csv
 import os
 import sys
 from pathlib import Path
+
+# Re-exec using venv python before heavy imports.
+if os.environ.get("VIRTUAL_ENV") is None:
+    venv_python = Path(".venv") / "bin" / "python"
+    if venv_python.exists():
+        os.execv(str(venv_python), [str(venv_python), *sys.argv])
+
+import csv
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -19,10 +26,6 @@ def require(cond, msg):
 
 
 def main():
-    if os.environ.get("VIRTUAL_ENV") is None:
-        venv_python = Path(".venv") / "bin" / "python"
-        if venv_python.exists():
-            os.execv(str(venv_python), [str(venv_python), *sys.argv])
     if len(sys.argv) != 2:
         usage()
         sys.exit(2)
