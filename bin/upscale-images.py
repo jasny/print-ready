@@ -89,6 +89,8 @@ def main():
         use_half = True
 
     target_dpi = float(os.environ.get("TARGET_DPI", "300"))
+    dpi_margin = float(os.environ.get("DPI_MARGIN", "3"))
+    target_dpi_eff = target_dpi + dpi_margin
     max_upscale = float(os.environ.get("MAX_UPSCALE", "4.0"))
     weights_dir = Path("weights")
     model_name = os.environ.get("UPSCALER_MODEL", "RealESRGAN_x4plus")
@@ -209,7 +211,7 @@ def main():
                 if min_ppi <= 0:
                     continue
 
-                scale_required = max(1.0, min(target_dpi / min_ppi, max_upscale))
+                scale_required = max(1.0, min(target_dpi_eff / min_ppi, max_upscale))
                 if scale_required <= 1.0:
                     continue
 
