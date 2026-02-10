@@ -27,14 +27,11 @@ if [[ ! -f "$low_csv" ]]; then
 fi
 
 output_dir="03-extract-images/${base_name}"
-report_csv="03-extract-images/${base_name}.images.csv"
 mkdir -p "$output_dir"
 
 # Build a set of low-DPI image keys (object + id)
 low_keys="$(mktemp)"
 awk -F, 'NR==1 {next} {print $3"-"$4}' "$low_csv" | sort -u > "$low_keys"
-
-printf 'page,image_key,object,id,src_file,width,height,color,enc,type\n' > "$report_csv"
 
 pdfimages -list "$input_pdf" | awk '
   NR<=2 {next}
@@ -72,11 +69,8 @@ while IFS=, read -r page num object id width height color enc type; do
   fi
   out_file="${output_dir}/obj-${object}-${id}.png"
   cp "$src_file" "$out_file"
-  printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' "$page" "obj-${object}-${id}" "$object" "$id" "$out_file" "$width" "$height" "$color" "$enc" "$type" >> "$report_csv"
   printf 'Wrote %s\n' "$out_file"
 done < /tmp/pdfimages.list
 
 rm -rf "$all_tmpdir"
 rm -f "$low_keys" /tmp/pdfimages.list
-
-printf 'Wrote %s\n' "$report_csv"
