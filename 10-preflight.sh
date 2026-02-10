@@ -25,10 +25,6 @@ if [[ ! -f "$src_pdf" ]]; then
   src_pdf="$input_pdf"
 fi
 
-output_dir="10-preflight"
-report_file="${output_dir}/${base_name}.preflight.txt"
-mkdir -p "$output_dir"
-
 target_dpi="${TARGET_DPI:-300}"
 pdf_standard="${PDF_STANDARD:-PDF/X-1a}"
 color_profile="${COLOR_PROFILE:-}"
@@ -119,50 +115,48 @@ if [[ -f "${tmp_low}.count" ]]; then
   low_count="$(cat "${tmp_low}.count")"
 fi
 
-if [[ "$rgb_count" -gt 0 ]]; then
-  failures+=("RGB images remain")
-fi
-if [[ "$low_count" -gt 0 ]]; then
-  failures+=("low-DPI images remain")
-fi
-
-{
-  echo "Input: $input_pdf"
-  echo "Normalized: $src_pdf"
-  echo "Pages (original): ${orig_pages:-unknown}"
-  echo "Pages (normalized): ${src_pages:-unknown}"
-  echo "Target DPI: $target_dpi"
-  echo "PDF_STANDARD: $pdf_standard"
-  echo "COLOR_PROFILE: ${color_profile:-none}"
-  echo "RGB images: $rgb_count"
-  echo "Low-DPI images: $low_count"
-  if [[ -n "$qpdf_check_output" ]]; then
-    echo "qpdf check:"
-    echo "$qpdf_check_output" | sed 's/^/  /'
-  fi
   if [[ "$rgb_count" -gt 0 ]]; then
-    echo "RGB objects (key,object,id,color,enc,type,x_ppi,y_ppi):"
-    sed 's/^/  /' "$tmp_rgb"
+    failures+=("RGB images remain")
   fi
   if [[ "$low_count" -gt 0 ]]; then
-    echo "Low-DPI objects (key,object,id,color,enc,type,x_ppi,y_ppi,min_ppi,width,height):"
-    sed 's/^/  /' "$tmp_low"
+    failures+=("low-DPI images remain")
   fi
-  if [[ "${#failures[@]}" -eq 0 ]]; then
-    echo "Status: OK"
-  else
-    echo "Status: FAIL"
-    for reason in "${failures[@]}"; do
-      echo "Reason: $reason"
-    done
-  fi
-} > "$report_file"
+
+echo "Input: $input_pdf"
+echo "Normalized: $src_pdf"
+echo "Pages (original): ${orig_pages:-unknown}"
+echo "Pages (normalized): ${src_pages:-unknown}"
+echo "Target DPI: $target_dpi"
+echo "PDF_STANDARD: $pdf_standard"
+echo "COLOR_PROFILE: ${color_profile:-none}"
+echo "RGB images: $rgb_count"
+echo "Low-DPI images: $low_count"
+if [[ -n "$qpdf_check_output" ]]; then
+  echo "qpdf check:"
+  echo "$qpdf_check_output" | sed 's/^/  /'
+fi
+if [[ "$rgb_count" -gt 0 ]]; then
+  echo "RGB objects:"
+  awk -F, '{printf "  RGB: %s (object %s,%s) color=%s enc=%s type=%s x_ppi=%.2f y_ppi=%.2f\n", $1, $2, $3, $4, $5, $6, $7, $8}' "$tmp_rgb"
+fi
+if [[ "$low_count" -gt 0 ]]; then
+  echo "Low-DPI objects:"
+  awk -F, '{printf "  LOW_DPI: %s (object %s,%s) color=%s enc=%s type=%s x_ppi=%.2f y_ppi=%.2f min_ppi=%.2f size=%sx%s\n", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11}' "$tmp_low"
+fi
+if [[ "${#failures[@]}" -eq 0 ]]; then
+  echo "Status: OK"
+else
+  echo "Status: FAIL"
+  for reason in "${failures[@]}"; do
+    echo "Reason: $reason"
+  done
+fi
 
 rm -f "$tmp_low" "$tmp_rgb" "${tmp_low}.count" "${tmp_rgb}.count"
 
 if [[ "${#failures[@]}" -ne 0 ]]; then
-  echo "Preflight failed. See $report_file" >&2
+  echo "Preflight failed." >&2
   exit 1
 fi
 
-echo "Wrote $report_file"
+exit 0
