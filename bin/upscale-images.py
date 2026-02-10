@@ -110,6 +110,8 @@ def main():
         gpu_id=gpu_id,
     )
 
+    min_scale_env = float(os.environ.get("MIN_SCALE", "1.0"))
+
     def upscale_one(src_file: Path, final_out: Path, scale_required: float) -> None:
         eprint(f"Upscaling: {src_file} -> {final_out} (scale {scale_required:.4f}, gpu {gpu_id})")
         img = cv2.imread(str(src_file), cv2.IMREAD_COLOR)
@@ -120,14 +122,22 @@ def main():
             try:
                 output, _ = upsampler.enhance(img, outscale=scale)
                 require(cv2.imwrite(str(final_out), output), f"failed to write {final_out}")
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
                 break
             except RuntimeError as exc:
                 msg = str(exc)
                 if "out of memory" not in msg.lower():
                     raise
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
                 next_scale = scale * 0.9
-                if next_scale < 1.0:
-                    raise
+                if next_scale < min_scale_env:
+                    eprint(f"  OOM at scale {scale:.4f}; copying original (min_scale={min_scale_env})")
+                    require(cv2.imwrite(str(final_out), img), f"failed to write {final_out}")
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                    return
                 eprint(f"  OOM at scale {scale:.4f}; retrying with {next_scale:.4f}")
                 scale = next_scale
 

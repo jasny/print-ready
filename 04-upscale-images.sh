@@ -7,4 +7,5 @@ if [[ ! -d .venv ]]; then
 fi
 
 . .venv/bin/activate
+export PYTORCH_ALLOC_CONF="${PYTORCH_ALLOC_CONF:-expandable_segments:True}"
 exec python bin/upscale-images.py "$@"
