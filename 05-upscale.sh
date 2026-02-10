@@ -102,6 +102,11 @@ while read -r page; do
   tmp_out="${output_dir}/p${page_num}.esrgan.png"
   final_out="${output_dir}/p${page_num}.up.png"
 
+  if [[ -s "$final_out" ]]; then
+    echo "Skip: $final_out already exists" >&2
+    continue
+  fi
+
   echo "Upscaling: $raw_file -> $final_out (scale $esrgan_scale, gpu $gpu_id)" >&2
   tmp_err="$(mktemp)"
   realesrgan-ncnn-vulkan -i "$raw_file" -o "$tmp_out" -s "$esrgan_scale" -n "$model_name" -g "$gpu_id" -f png $extra_args 2> "$tmp_err"
