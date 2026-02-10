@@ -80,7 +80,7 @@ def main():
                     obj.ColorSpace = pikepdf.Name("/DeviceGray")
                 else:
                     obj.ColorSpace = pikepdf.Name("/DeviceRGB")
-                obj.write(data, filter=pikepdf.Name("/FlateDecode"))
+                obj.write(data)
                 rep.write(f"REPLACED obj {obj_id} {gen} -> {img_path}\n")
 
             # Replace smask if available
@@ -97,7 +97,7 @@ def main():
                         smask_obj.Height = sm.height
                         smask_obj.BitsPerComponent = 8
                         smask_obj.ColorSpace = pikepdf.Name("/DeviceGray")
-                        smask_obj.write(sm.tobytes(), filter=pikepdf.Name("/FlateDecode"))
+                        smask_obj.write(sm.tobytes())
                         smask_replaced += 1
                         rep.write(f"REPLACED smask {smask_obj.objgen[0]} {smask_obj.objgen[1]} -> {smask_path}\n")
 
