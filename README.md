@@ -300,6 +300,19 @@ COLOR_PROFILE=printer.icc
 
 Each report must log the effective configuration used.
 
+## Print Specs Summary (New Energy)
+
+These requirements are summarized from New Energy’s Dutch print delivery specifications and are provided for convenience (inside pages only; covers are out of scope here). citeturn0search0
+
+- Images should be **≥300 dpi**; below **240 dpi** risks visible quality loss. Avoid web‑sourced images due to low quality/rights. citeturn0search0
+- Add **3 mm bleed** for inside pages; bleed artwork must extend into the bleed area. citeturn0search0turn0search3
+- Minimum line thickness: **0.1 mm** (or **0.4 mm** for foil finishes). citeturn0search0
+- **Flatten transparency** and export as **PDF/X-1a:2001** for print delivery. citeturn0search0
+- Use **CMYK only** (no RGB); total ink coverage should not exceed **280%**. citeturn0search0
+- Deep black (typically for covers): **C50 M40 Y40 K100**. Text/line art in body should be **K100 only**. citeturn0search0
+- Include **trim marks** on export; keep offsets outside the bleed. citeturn0search0
+- Deliver **cPDF** (certified PDF) and export using PDF/X‑1a:2001 presets. citeturn0search0
+
 ## Agent instructions
 
 An AI agent working on this repository must:
