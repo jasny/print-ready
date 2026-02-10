@@ -9,7 +9,7 @@ def eprint(*args, **kwargs):
 
 
 def usage():
-    eprint("Usage: 04-upscale-images.py <input-pdf>")
+    eprint("Usage: upscale-images.py <input-pdf> | <input-image>")
 
 
 def require(cond, msg):
@@ -23,8 +23,8 @@ def main():
         usage()
         sys.exit(2)
 
-    input_pdf = Path(sys.argv[1])
-    require(input_pdf.is_file(), f"input file not found: {input_pdf}")
+    input_path = Path(sys.argv[1])
+    require(input_path.is_file(), f"input file not found: {input_path}")
 
     try:
         import torch
@@ -46,14 +46,20 @@ def main():
         eprint(str(exc))
         sys.exit(1)
 
-    base_name = input_pdf.stem
-    low_csv = Path("02-analyze-dpi") / f"{base_name}.lowdpi.images.csv"
-    input_dir = Path("03-extract-images") / base_name
-    output_dir = Path("04-upscale-images") / base_name
-    output_dir.mkdir(parents=True, exist_ok=True)
+    if input_path.suffix.lower() == ".pdf":
+        base_name = input_path.stem
+        low_csv = Path("02-analyze-dpi") / f"{base_name}.lowdpi.images.csv"
+        input_dir = Path("03-extract-images") / base_name
+        output_dir = Path("04-upscale-images") / base_name
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-    require(low_csv.is_file(), f"missing low-DPI image list: {low_csv}")
-    require(input_dir.is_dir(), f"missing extracted images directory: {input_dir}")
+        require(low_csv.is_file(), f"missing low-DPI image list: {low_csv}")
+        require(input_dir.is_dir(), f"missing extracted images directory: {input_dir}")
+    else:
+        base_name = input_path.stem
+        low_csv = None
+        input_dir = input_path.parent
+        output_dir = input_path.parent
 
     force_cpu = os.environ.get("FORCE_CPU") == "1"
     gpu_id_env = os.environ.get("GPU_ID")
@@ -104,40 +110,47 @@ def main():
         gpu_id=gpu_id,
     )
 
-    seen = set()
+    def upscale_one(src_file: Path, final_out: Path, scale_required: float) -> None:
+        eprint(f"Upscaling: {src_file} -> {final_out} (scale {scale_required:.4f}, gpu {gpu_id})")
+        img = cv2.imread(str(src_file), cv2.IMREAD_COLOR)
+        require(img is not None, f"failed to read image: {src_file}")
+        eprint(f"  Image shape: {img.shape[1]}x{img.shape[0]}  dtype={img.dtype}")
+        output, _ = upsampler.enhance(img, outscale=scale_required)
+        require(cv2.imwrite(str(final_out), output), f"failed to write {final_out}")
 
-    with low_csv.open(newline="") as fh:
-        reader = csv.DictReader(fh)
-        for row in reader:
-            image_key = row.get("image_key")
-            if not image_key or image_key in seen:
-                continue
-            seen.add(image_key)
+    if low_csv is None:
+        src_file = input_path
+        final_out = input_path.with_name(f"{input_path.stem}.up{input_path.suffix}")
+        scale_required = float(os.environ.get("SCALE", "2.0"))
+        require(scale_required >= 1.0, "SCALE must be >= 1.0")
+        upscale_one(src_file, final_out, scale_required)
+    else:
+        seen = set()
+        with low_csv.open(newline="") as fh:
+            reader = csv.DictReader(fh)
+            for row in reader:
+                image_key = row.get("image_key")
+                if not image_key or image_key in seen:
+                    continue
+                seen.add(image_key)
 
-            src_file = input_dir / f"{image_key}.png"
-            if not src_file.is_file():
-                continue
+                src_file = input_dir / f"{image_key}.png"
+                if not src_file.is_file():
+                    continue
 
-            final_out = output_dir / f"{image_key}.up.png"
-            if final_out.is_file():
-                continue
+                final_out = output_dir / f"{image_key}.up.png"
+                if final_out.is_file():
+                    continue
 
-            min_ppi = float(row.get("min_ppi") or 0)
-            if min_ppi <= 0:
-                continue
+                min_ppi = float(row.get("min_ppi") or 0)
+                if min_ppi <= 0:
+                    continue
 
-            scale_required = max(1.0, min(target_dpi / min_ppi, max_upscale))
-            if scale_required <= 1.0:
-                continue
+                scale_required = max(1.0, min(target_dpi / min_ppi, max_upscale))
+                if scale_required <= 1.0:
+                    continue
 
-            eprint(f"Upscaling: {src_file} -> {final_out} (scale {scale_required:.4f}, gpu {gpu_id})")
-
-            img = cv2.imread(str(src_file), cv2.IMREAD_COLOR)
-            require(img is not None, f"failed to read image: {src_file}")
-            eprint(f"  Image shape: {img.shape[1]}x{img.shape[0]}  dtype={img.dtype}")
-
-            output, _ = upsampler.enhance(img, outscale=scale_required)
-            require(cv2.imwrite(str(final_out), output), f"failed to write {final_out}")
+                upscale_one(src_file, final_out, scale_required)
 
     print("Done.")
 
