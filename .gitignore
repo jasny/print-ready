@@ -9,8 +9,10 @@
 07-resize-smasks/**
 08-replace-images/**
 09-normalize-pdf/**
-!.gitignore
-!*/
+
+.venv/
+weights/
+
 !00-input/.gitkeep
 !01-validate/.gitkeep
 !02-analyze-dpi/.gitkeep
