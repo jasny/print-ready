@@ -47,3 +47,4 @@ No automated tests are currently specified. Validation is performed via the pipe
 - Produce human-readable reports at every step.
 - Create a Git commit after each task you complete for the user.
 - Only rely on tools that are installed by the repository's installer (plus standard Ubuntu tools). If a non-standard tool is required, add it to the installer first.
+- Run scripts yourself and iterate until they work as expected, unless GPU access is required.
