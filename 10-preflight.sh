@@ -26,6 +26,7 @@ if [[ ! -f "$src_pdf" ]]; then
 fi
 
 target_dpi="${TARGET_DPI:-300}"
+min_dpi="$(awk -v t="$target_dpi" 'BEGIN { printf "%.2f", t * 0.95 }')"
 pdf_standard="${PDF_STANDARD:-PDF/X-4}"
 color_profile="${COLOR_PROFILE:-}"
 
@@ -96,7 +97,7 @@ pdfimages -list "$src_pdf" | awk -v target="$target_dpi" '
       printf "%s,%s,%s,%s,%s,%s,%.2f,%.2f\n", key, object, id, color, enc, type, x+0, y+0 >> rgb
       rgb_count++
     }
-    if ((x+0) < target || (y+0) < target) {
+    if ((x+0) < min || (y+0) < min) {
       min_ppi = (x+0 < y+0) ? x+0 : y+0
       printf "%s,%s,%s,%s,%s,%s,%.2f,%.2f,%.2f,%s,%s\n", key, object, id, color, enc, type, x+0, y+0, min_ppi, width, height >> low
       low_count++
@@ -106,7 +107,7 @@ pdfimages -list "$src_pdf" | awk -v target="$target_dpi" '
     printf "%d\n", rgb_count > rgb_count_file
     printf "%d\n", low_count > low_count_file
   }
-' rgb="$tmp_rgb" low="$tmp_low" rgb_count_file="${tmp_rgb}.count" low_count_file="${tmp_low}.count"
+' min="$min_dpi" rgb="$tmp_rgb" low="$tmp_low" rgb_count_file="${tmp_rgb}.count" low_count_file="${tmp_low}.count"
 
 if [[ -f "${tmp_rgb}.count" ]]; then
   rgb_count="$(cat "${tmp_rgb}.count")"
@@ -127,6 +128,7 @@ echo "Normalized: $src_pdf"
 echo "Pages (original): ${orig_pages:-unknown}"
 echo "Pages (normalized): ${src_pages:-unknown}"
 echo "Target DPI: $target_dpi"
+echo "Min DPI (5% margin): $min_dpi"
 echo "PDF_STANDARD: $pdf_standard"
 echo "COLOR_PROFILE: ${color_profile:-none}"
 echo "RGB images: $rgb_count"
