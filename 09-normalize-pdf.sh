@@ -43,31 +43,29 @@ color_profile="${COLOR_PROFILE:-}"
 } > "$report_file"
 
 # Basic normalization via Ghostscript. Produces a print-ready CMYK PDF.
+# Disable all downsampling to preserve upscaled resolution.
+gs_common=(
+  -dBATCH -dNOPAUSE -dSAFER
+  -sDEVICE=pdfwrite
+  -sOutputFile="$output_pdf"
+  -dPDFSETTINGS=/prepress
+  -dCompatibilityLevel=1.4
+  -sProcessColorModel=DeviceCMYK
+  -sColorConversionStrategy=CMYK
+  -sColorConversionStrategyForImages=CMYK
+  -dDownsampleColorImages=false
+  -dDownsampleGrayImages=false
+  -dDownsampleMonoImages=false
+)
+
 # If COLOR_PROFILE is provided and exists, use it as output ICC.
 if [[ -n "$color_profile" && -f "$color_profile" ]]; then
-  gs \
-    -dBATCH -dNOPAUSE -dSAFER \
-    -sDEVICE=pdfwrite \
-    -sOutputFile="$output_pdf" \
-    -dPDFSETTINGS=/prepress \
-    -dCompatibilityLevel=1.4 \
-    -sProcessColorModel=DeviceCMYK \
-    -sColorConversionStrategy=CMYK \
-    -sColorConversionStrategyForImages=CMYK \
+  gs "${gs_common[@]}" \
     -dOverrideICC \
     -sOutputICCProfile="$color_profile" \
     "$src_pdf"
 else
-  gs \
-    -dBATCH -dNOPAUSE -dSAFER \
-    -sDEVICE=pdfwrite \
-    -sOutputFile="$output_pdf" \
-    -dPDFSETTINGS=/prepress \
-    -dCompatibilityLevel=1.4 \
-    -sProcessColorModel=DeviceCMYK \
-    -sColorConversionStrategy=CMYK \
-    -sColorConversionStrategyForImages=CMYK \
-    "$src_pdf"
+  gs "${gs_common[@]}" "$src_pdf"
 fi
 
 echo "Wrote: $output_pdf" >> "$report_file"
