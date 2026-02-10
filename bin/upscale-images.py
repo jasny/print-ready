@@ -89,7 +89,10 @@ def main():
     require(weights_path.is_file(), f"missing model weights: {weights_path}")
 
     model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
-    eprint(f"Using GPU_ID={gpu_id} ({torch.cuda.get_device_name(gpu_id)})")
+    if gpu_id is not None:
+        gpu_count = torch.cuda.device_count()
+        require(0 <= gpu_id < gpu_count, f"Invalid GPU_ID {gpu_id}. Available range: 0..{gpu_count-1}")
+        eprint(f"Using GPU_ID={gpu_id} ({torch.cuda.get_device_name(gpu_id)})")
     upsampler = RealESRGANer(
         scale=4,
         model_path=str(weights_path),
