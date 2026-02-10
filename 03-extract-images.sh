@@ -68,6 +68,9 @@ while IFS=, read -r page num object id width height color enc type; do
     exit 1
   fi
   out_file="${output_dir}/obj-${object}-${id}.png"
+  if [[ -s "$out_file" ]]; then
+    continue
+  fi
   cp "$src_file" "$out_file"
   printf 'Wrote %s\n' "$out_file"
 done < /tmp/pdfimages.list
