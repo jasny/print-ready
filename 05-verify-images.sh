@@ -23,7 +23,6 @@ base_name="${base_name%.*}"
 low_csv="02-analyze-dpi/${base_name}.lowdpi.images.csv"
 up_dir="04-upscale-images/${base_name}"
 output_dir="05-verify-images/${base_name}"
-report_csv="05-verify-images/${base_name}.verify.csv"
 
 mkdir -p "$output_dir"
 
@@ -38,8 +37,6 @@ if [[ ! -d "$up_dir" ]]; then
 fi
 
 target_dpi="${TARGET_DPI:-300}"
-
-printf 'image_key,orig_w,orig_h,new_w,new_h,min_ppi,new_min_ppi,meets_target\n' > "$report_csv"
 
 while IFS=, read -r page image_key object id x_ppi y_ppi min_ppi width height color enc type low_dpi; do
   if [[ "$image_key" == "image_key" || -z "$image_key" ]]; then
@@ -66,12 +63,9 @@ while IFS=, read -r page image_key object id x_ppi y_ppi min_ppi width height co
     meets=0
   fi
 
-  printf '%s,%s,%s,%s,%s,%.2f,%.2f,%d\n' "$image_key" "$width" "$height" "$new_w" "$new_h" "$min_ppi" "$new_min_ppi" "$meets" >> "$report_csv"
-
   if [[ "$meets" -eq 0 ]]; then
+    echo "FAIL $image_key: dpi=${new_min_ppi} (target=${target_dpi})"
     cp "$src_file" "$output_dir/"
   fi
 
 done < "$low_csv"
-
-printf 'Wrote %s\n' "$report_csv"
