@@ -72,8 +72,8 @@ def main():
                     out_mode = "L"
                     im = im.convert("L")
                 else:
-                    out_mode = "CMYK"
-                    im = im.convert("CMYK")
+                    out_mode = "RGB"
+                    im = im.convert("RGB")
                 data = im.tobytes()
                 obj.Type = pikepdf.Name("/XObject")
                 obj.Subtype = pikepdf.Name("/Image")
@@ -83,7 +83,7 @@ def main():
                 if out_mode == "L":
                     obj.ColorSpace = pikepdf.Name("/DeviceGray")
                 else:
-                    obj.ColorSpace = pikepdf.Name("/DeviceCMYK")
+                    obj.ColorSpace = pikepdf.Name("/DeviceRGB")
                 if "/Matte" in obj:
                     del obj["/Matte"]
                 obj.write(data)
