@@ -47,6 +47,14 @@ The core principles are:
 
 Each step reads only from earlier steps and writes only to its own folder.
 
+## Running the full pipeline
+
+```
+./convert.sh 00-input/boek.pdf
+```
+
+Runs steps 1–10 in order and stops on the first failure. All script output is streamed to the terminal.
+
 ## Naming conventions
 
 Input file:
