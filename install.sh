@@ -54,7 +54,10 @@ python -m pip install --upgrade "basicsr @ git+https://github.com/XPixelGroup/Ba
 
 mkdir -p weights
 if [[ ! -f weights/RealESRGAN_x4plus.pth ]]; then
-  curl -L "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth" -o weights/RealESRGAN_x4plus.pth
+  curl -L "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x4plus.pth" -o weights/RealESRGAN_x4plus.pth
+fi
+if [[ ! -f weights/RealESRGAN_x2plus.pth ]]; then
+  curl -L "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth" -o weights/RealESRGAN_x2plus.pth
 fi
 
 BIN_PATH="$(find "${INSTALL_DIR}" -type f -name realesrgan-ncnn-vulkan -print -quit)"

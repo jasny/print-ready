@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 import csv
+import urllib.request
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -89,26 +90,54 @@ def main():
 
     target_dpi = float(os.environ.get("TARGET_DPI", "300"))
     max_upscale = float(os.environ.get("MAX_UPSCALE", "4.0"))
-    model_name = os.environ.get("UPSCALER_MODEL", "RealESRGAN_x4plus")
     weights_dir = Path("weights")
+    model_name = os.environ.get("UPSCALER_MODEL", "RealESRGAN_x4plus")
+    model_scale = 4 if model_name.endswith("x4plus") else 2
     weights_path = weights_dir / f"{model_name}.pth"
     require(weights_path.is_file(), f"missing model weights: {weights_path}")
 
-    model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
     if gpu_id is not None:
         gpu_count = torch.cuda.device_count()
         require(0 <= gpu_id < gpu_count, f"Invalid GPU_ID {gpu_id}. Available range: 0..{gpu_count-1}")
         eprint(f"Using GPU_ID={gpu_id} ({torch.cuda.get_device_name(gpu_id)})")
-    upsampler = RealESRGANer(
-        scale=4,
-        model_path=str(weights_path),
-        model=model,
-        tile=0,          # no tiling
-        tile_pad=10,
-        pre_pad=0,
-        half=use_half,
-        gpu_id=gpu_id,
-    )
+
+    def download_weights(weights: Path) -> None:
+        weights.parent.mkdir(parents=True, exist_ok=True)
+        url = f"https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/{weights.name}"
+        eprint(f"Downloading weights: {url}")
+        with urllib.request.urlopen(url) as resp, open(weights, "wb") as out:
+            out.write(resp.read())
+
+    def build_upsampler(scale: int, weights: Path) -> RealESRGANer:
+        model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=scale)
+        if hasattr(torch.serialization, "add_safe_globals"):
+            torch.serialization.add_safe_globals({"collections.OrderedDict": __import__("collections").OrderedDict})
+        try:
+            loadnet = torch.load(str(weights), map_location=torch.device("cpu"), weights_only=False)
+        except Exception:
+            if weights.exists():
+                weights.unlink()
+            download_weights(weights)
+            loadnet = torch.load(str(weights), map_location=torch.device("cpu"), weights_only=False)
+        if "params_ema" in loadnet:
+            model.load_state_dict(loadnet["params_ema"], strict=True)
+        elif "params" in loadnet:
+            model.load_state_dict(loadnet["params"], strict=True)
+        else:
+            model.load_state_dict(loadnet, strict=True)
+        model.eval()
+        return RealESRGANer(
+            scale=scale,
+            model_path=str(weights),
+            model=model,
+            tile=0,          # no tiling
+            tile_pad=10,
+            pre_pad=0,
+            half=use_half,
+            gpu_id=gpu_id,
+        )
+
+    upsampler = build_upsampler(model_scale, weights_path)
 
     min_scale_env = float(os.environ.get("MIN_SCALE", "1.0"))
 
@@ -118,28 +147,39 @@ def main():
         require(img is not None, f"failed to read image: {src_file}")
         eprint(f"  Image shape: {img.shape[1]}x{img.shape[0]}  dtype={img.dtype}")
         scale = scale_required
-        while True:
-            try:
-                output, _ = upsampler.enhance(img, outscale=scale)
-                require(cv2.imwrite(str(final_out), output), f"failed to write {final_out}")
+        try:
+            output, _ = upsampler.enhance(img, outscale=scale)
+            require(cv2.imwrite(str(final_out), output), f"failed to write {final_out}")
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except RuntimeError as exc:
+            msg = str(exc)
+            if "out of memory" not in msg.lower():
+                raise
+            if model_scale == 4:
+                eprint("  OOM on x4 model; retrying with x2 model")
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
-                break
-            except RuntimeError as exc:
-                msg = str(exc)
-                if "out of memory" not in msg.lower():
-                    raise
+                x2_weights = weights_dir / "RealESRGAN_x2plus.pth"
+                if not x2_weights.is_file():
+                    download_weights(x2_weights)
+                x2_upsampler = build_upsampler(2, x2_weights)
+                try:
+                    output, _ = x2_upsampler.enhance(img, outscale=scale)
+                    require(cv2.imwrite(str(final_out), output), f"failed to write {final_out}")
+                except RuntimeError as exc2:
+                    if "out of memory" in str(exc2).lower():
+                        eprint("  OOM on x2 model; copying original")
+                        require(cv2.imwrite(str(final_out), img), f"failed to write {final_out}")
+                    else:
+                        raise
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
-                next_scale = scale * 0.9
-                if next_scale < min_scale_env:
-                    eprint(f"  OOM at scale {scale:.4f}; copying original (min_scale={min_scale_env})")
-                    require(cv2.imwrite(str(final_out), img), f"failed to write {final_out}")
-                    if torch.cuda.is_available():
-                        torch.cuda.empty_cache()
-                    return
-                eprint(f"  OOM at scale {scale:.4f}; retrying with {next_scale:.4f}")
-                scale = next_scale
+            else:
+                eprint(f"  OOM at scale {scale:.4f}; copying original")
+                require(cv2.imwrite(str(final_out), img), f"failed to write {final_out}")
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
 
     if low_csv is None:
         src_file = input_path
