@@ -9,10 +9,11 @@ This repository defines a stepwise, folder-based PDF pipeline. Each step reads f
 - `03-extract-images/` extracted raster images and metadata
 - `04-upscale-images/` upscaled images and CSVs
 - `05-verify-images/` reports and images that still miss target DPI
-- `06-replace-images/` PDFs with replaced image objects
-- `07-normalize-pdf/` print-ready normalization outputs
-- `08-preflight/` final verification reports
-- `09-output/` deliverables only
+- `06-resize-images/` non-AI resized images that now meet target DPI
+- `07-replace-images/` PDFs with replaced image objects
+- `08-normalize-pdf/` print-ready normalization outputs
+- `09-preflight/` final verification reports
+- `10-output/` deliverables only
 
 ## Build, Test, and Development Commands
 No build or test commands are defined in this repo. The workflow is documented in `README.md`, and execution is expected to be script-driven by downstream tooling. If you add scripts later, document them here with examples such as:
