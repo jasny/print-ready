@@ -51,12 +51,12 @@ while IFS=, read -r page image_key object id x_ppi y_ppi min_ppi width height co
     continue
   fi
 
-  if ! read -r new_w new_h < <(identify -format "%w %h" "$src_file" 2>/dev/null); then
-    echo "WARN: failed to read dimensions for $src_file; marking as insufficient" >&2
-    printf '%s,%s,%s,%s,%s,%.2f,%.2f,%d\n' "$image_key" "$width" "$height" "" "" "$min_ppi" "0.00" 0 >> "$report_csv"
-    cp "$src_file" "$output_dir/"
-    continue
+  dims="$(identify -format '%w %h' "$src_file" 2>/dev/null || true)"
+  if [[ -z "$dims" ]]; then
+    echo "ERROR: failed to read dimensions for $src_file" >&2
+    exit 1
   fi
+  read -r new_w new_h <<< "$dims"
 
   scale_w=$(awk -v nw="$new_w" -v ow="$width" 'BEGIN {if (ow==0) {print 0} else {printf "%.6f", nw/ow}}')
   new_min_ppi=$(awk -v m="$min_ppi" -v s="$scale_w" 'BEGIN {printf "%.2f", m*s}')
