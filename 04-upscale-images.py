@@ -58,7 +58,10 @@ def main():
         gpu_id = None
         use_half = False
     else:
-        require(torch.cuda.is_available(), "CUDA GPU not available. Set FORCE_CPU=1 to run on CPU.")
+        if not torch.cuda.is_available():
+            eprint("ERROR: CUDA GPU not available. This run will not use the GPU.")
+            eprint("Hint: activate the venv and verify: python -c 'import torch; print(torch.cuda.is_available())'")
+            sys.exit(1)
         if gpu_id_env:
             gpu_id = int(gpu_id_env)
         else:
@@ -80,6 +83,7 @@ def main():
     require(weights_path.is_file(), f"missing model weights: {weights_path}")
 
     model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
+    eprint(f"Using GPU_ID={gpu_id} ({torch.cuda.get_device_name(gpu_id)})")
     upsampler = RealESRGANer(
         scale=4,
         model_path=str(weights_path),
@@ -121,6 +125,7 @@ def main():
 
             img = cv2.imread(str(src_file), cv2.IMREAD_COLOR)
             require(img is not None, f"failed to read image: {src_file}")
+            eprint(f"  Image shape: {img.shape[1]}x{img.shape[0]}  dtype={img.dtype}")
 
             output, _ = upsampler.enhance(img, outscale=scale_required)
             require(cv2.imwrite(str(final_out), output), f"failed to write {final_out}")
