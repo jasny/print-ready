@@ -116,9 +116,9 @@ if [[ -f "${tmp_low}.count" ]]; then
   low_count="$(cat "${tmp_low}.count")"
 fi
 
-  if [[ "$rgb_count" -gt 0 ]]; then
-    failures+=("RGB images remain")
-  fi
+if [[ "$rgb_count" -gt 0 ]]; then
+  failures+=("RGB images remain")
+fi
   if [[ "$low_count" -gt 0 ]]; then
     failures+=("low-DPI images remain")
   fi

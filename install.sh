@@ -26,6 +26,7 @@ $SUDO apt-get install -y --no-install-recommends \
   python3-pip \
   vulkan-tools \
   libvulkan1 \
+  liblcms2-2 \
   ripgrep
 
 REAL_ESRGAN_VERSION="v0.2.5.0"
