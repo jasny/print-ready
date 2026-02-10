@@ -115,8 +115,21 @@ def main():
         img = cv2.imread(str(src_file), cv2.IMREAD_COLOR)
         require(img is not None, f"failed to read image: {src_file}")
         eprint(f"  Image shape: {img.shape[1]}x{img.shape[0]}  dtype={img.dtype}")
-        output, _ = upsampler.enhance(img, outscale=scale_required)
-        require(cv2.imwrite(str(final_out), output), f"failed to write {final_out}")
+        scale = scale_required
+        while True:
+            try:
+                output, _ = upsampler.enhance(img, outscale=scale)
+                require(cv2.imwrite(str(final_out), output), f"failed to write {final_out}")
+                break
+            except RuntimeError as exc:
+                msg = str(exc)
+                if "out of memory" not in msg.lower():
+                    raise
+                next_scale = scale * 0.9
+                if next_scale < 1.0:
+                    raise
+                eprint(f"  OOM at scale {scale:.4f}; retrying with {next_scale:.4f}")
+                scale = next_scale
 
     if low_csv is None:
         src_file = input_path
