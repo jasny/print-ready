@@ -42,8 +42,7 @@ The core principles are:
 07-resize-smasks/
 08-replace-images/
 09-normalize-pdf/
-10-preflight/
-11-output/
+10-preflight (stdout only)
 ```
 
 Each step reads only from earlier steps and writes only to its own folder.
@@ -276,29 +275,14 @@ Final verification.
 
 **Outputs**
 
-```
-10-preflight/boek.preflight.txt
-```
+Prints to stdout only.
 
 **Fail if**
 
 * Page sizes differ
 * Low-DPI issues remain
 
-### 11-output
-
-**Purpose**
-Final deliverables only.
-
-**Contents**
-
-```
-11-output/boek.print.pdf
-11-output/boek.preflight.txt
-11-output/boek.dpi.csv
-```
-
-Only this folder is sent to the printer.
+The final deliverable remains in `09-normalize-pdf/`.
 
 ## Configuration
 
