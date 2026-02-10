@@ -20,8 +20,12 @@ $SUDO apt-get install -y --no-install-recommends \
   curl \
   unzip \
   ca-certificates \
+  python3 \
+  python3-venv \
+  python3-pip \
   vulkan-tools \
-  libvulkan1
+  libvulkan1 \
+  ripgrep
 
 REAL_ESRGAN_VERSION="v0.2.5.0"
 REAL_ESRGAN_ZIP="realesrgan-ncnn-vulkan-20220424-ubuntu.zip"
@@ -35,6 +39,19 @@ if ! find "${INSTALL_DIR}" -type f -name realesrgan-ncnn-vulkan -print -quit | g
   tmp_dir="$(mktemp -d)"
   curl -L "${REAL_ESRGAN_URL}" -o "${tmp_dir}/${REAL_ESRGAN_ZIP}"
   $SUDO unzip -q "${tmp_dir}/${REAL_ESRGAN_ZIP}" -d "${INSTALL_DIR}"
+fi
+
+if [[ ! -d .venv ]]; then
+  python3 -m venv .venv
+fi
+
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install torch torchvision torchaudio realesrgan opencv-python
+
+mkdir -p weights
+if [[ ! -f weights/RealESRGAN_x4plus.pth ]]; then
+  curl -L "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth" -o weights/RealESRGAN_x4plus.pth
 fi
 
 BIN_PATH="$(find "${INSTALL_DIR}" -type f -name realesrgan-ncnn-vulkan -print -quit)"
