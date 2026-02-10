@@ -46,3 +46,4 @@ No automated tests are currently specified. Validation is performed via the pipe
 - Skip conditional steps cleanly when no low-DPI pages are detected.
 - Produce human-readable reports at every step.
 - Create a Git commit after each task you complete for the user.
+- Only rely on tools that are installed by the repository's installer (plus standard Ubuntu tools). If a non-standard tool is required, add it to the installer first.

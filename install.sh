@@ -20,6 +20,7 @@ $SUDO apt-get install -y --no-install-recommends \
   curl \
   unzip \
   ca-certificates \
+  vulkan-tools \
   libvulkan1
 
 REAL_ESRGAN_VERSION="v0.2.5.0"
