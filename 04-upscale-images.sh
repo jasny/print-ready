@@ -42,9 +42,24 @@ if [[ ! -d "$input_dir" ]]; then
   exit 1
 fi
 
-if [[ "${FORCE_CPU:-}" != "1" && -z "${GPU_ID:-}" ]]; then
-  echo "ERROR: GPU_ID is required (set to the NVIDIA device index, e.g., GPU_ID=1)." >&2
-  exit 1
+gpu_id=""
+if [[ "${FORCE_CPU:-}" != "1" ]]; then
+  if [[ -n "${GPU_ID:-}" ]]; then
+    gpu_id="${GPU_ID}"
+  else
+    if command -v nvidia-smi >/dev/null 2>&1; then
+      gpu_count="$(nvidia-smi -L 2>/dev/null | grep -c '^GPU' || true)"
+      if [[ "$gpu_count" -eq 1 ]]; then
+        gpu_id=0
+      else
+        echo "ERROR: GPU_ID is required when multiple GPUs are present." >&2
+        exit 1
+      fi
+    else
+      echo "ERROR: GPU_ID is required (set to the NVIDIA device index, e.g., GPU_ID=1)." >&2
+      exit 1
+    fi
+  fi
 fi
 
 target_dpi="${TARGET_DPI:-300}"
@@ -55,8 +70,6 @@ extra_args="${REAL_ESRGAN_ARGS:-}"
 if [[ "${FORCE_CPU:-}" == "1" ]]; then
   echo "FORCE_CPU=1 set. Real-ESRGAN will use Vulkan device 0 (may be llvmpipe)." >&2
   gpu_id=0
-else
-  gpu_id="${GPU_ID}"
 fi
 
 printf 'image_key,object,id,min_ppi,scale_required,esrgan_scale,final_scale,model,gpu_id\n' > "$report_csv"
