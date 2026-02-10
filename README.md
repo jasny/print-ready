@@ -35,14 +35,12 @@ The core principles are:
 00-input/
 01-validate/
 02-analyze-dpi/
-03-split-pages/
-04-rasterize-lowdpi/
-05-upscale/
-06-rebuild-pages/
-07-merge-pages/
-08-normalize-pdf/
-09-preflight/
-10-output/
+03-extract-images/
+04-upscale-images/
+05-replace-images/
+06-normalize-pdf/
+07-preflight/
+08-output/
 ```
 
 Each step reads only from earlier steps and writes only to its own folder.
@@ -57,14 +55,12 @@ Input file:
 
 Derived names always preserve the base name `boek`.
 
-Page-based outputs are grouped in a folder named after the document:
+Image-based outputs are grouped in a folder named after the document:
 
 ```
-03-split-pages/boek/p001.pdf
-03-split-pages/boek/p002.pdf
+03-extract-images/boek/...
+04-upscale-images/boek/...
 ```
-
-This applies consistently to all page-based steps.
 
 ## Step-by-step workflow
 
@@ -112,7 +108,7 @@ Sanity check and baseline metadata extraction. No mutation.
 ### 02-analyze-dpi
 
 **Purpose**
-Determine whether any pages contain raster content below the target DPI.
+Identify embedded raster images below the target DPI.
 
 **Definition**
 
@@ -122,10 +118,10 @@ Effective DPI = pixel resolution of a raster image relative to the physical size
 
 ```
 02-analyze-dpi/boek.dpi.csv
-02-analyze-dpi/boek.lowdpi.pages.txt
+02-analyze-dpi/boek.lowdpi.images.csv
 ```
 
-`boek.lowdpi.pages.txt` contains one page index per line (1-based).
+`boek.lowdpi.images.csv` contains one image per line with page number, object id, and DPI.
 
 **Fail if**
 
@@ -133,17 +129,17 @@ Effective DPI = pixel resolution of a raster image relative to the physical size
 
 #### Control flow decision
 
-If **no low-DPI pages are found** in step 02:
+If **no low-DPI images are found** in step 02:
 
-* Steps **04**, **05**, and **06** are skipped.
-* The pipeline continues directly with **step 03 (split pages)** and then jumps to **step 07 (merge pages)**, using only original vector pages.
+* Steps **03**, **04**, and **05** are skipped.
+* The pipeline continues directly with **step 06 (normalize PDF)** using the original PDF.
 
 In other words:
 
 ```
 02-analyze-dpi
-   ├─ low-DPI pages found → 03 → 04 → 05 → 06 → 07
-   └─ no low-DPI pages    → 03 → 07
+   ├─ low-DPI images found → 03 → 04 → 05 → 06 → 07 → 08
+   └─ no low-DPI images    → 06 → 07 → 08
 ```
 
 This ensures:
@@ -151,66 +147,43 @@ This ensures:
 * No unnecessary rasterization
 * Output remains fully vector where possible
 
-### 03-split-pages
+### 03-extract-images (conditional)
 
 **Purpose**
-Split the document into individual page PDFs for selective processing.
-
-**Outputs**
-
-```
-03-split-pages/boek/p001.pdf
-03-split-pages/boek/p002.pdf
-...
-```
-
-**Rules**
-
-* Preserve exact page size
-* Preserve page order
-
-**Fail if**
-
-* Page count differs from validation step
-
-### 04-rasterize-lowdpi (conditional)
-
-**Purpose**
-Rasterize only pages that contain low-DPI raster content.
+Extract embedded raster images from pages that contain low-DPI content.
 
 **Inputs**
 
-* Pages listed in `boek.lowdpi.pages.txt`
+* Images listed in `boek.lowdpi.images.csv`
 
 **Outputs**
 
 ```
-04-rasterize-lowdpi/boek/p012.raw.png
-04-rasterize-lowdpi/boek.rasterize.txt
+03-extract-images/boek/obj-<object>-<id>.png
+03-extract-images/boek.images.csv
 ```
 
 **Rules**
 
 * Lossless output (PNG or TIFF)
-* Fixed render DPI (e.g. 300–400)
-* One image per page
+* Preserve original pixel dimensions
 
-### 05-upscale (conditional)
+### 04-upscale-images (conditional)
 
 **Purpose**
-Upscale rasterized pages so effective resolution meets or exceeds target DPI.
+Upscale only the extracted images so effective resolution meets or exceeds target DPI.
 
 **Strategy**
 
-* Compute required scale factor per page
+* Compute required scale factor per image
 * Clamp to reasonable bounds (e.g. max x4)
 * Do not blindly upscale everything
 
 **Outputs**
 
 ```
-05-upscale/boek/p012.up.png
-05-upscale/boek.upscale.csv
+04-upscale-images/boek/obj-<object>-<id>.up.png
+04-upscale-images/boek.upscale.csv
 ```
 
 **Fail if**
@@ -218,46 +191,19 @@ Upscale rasterized pages so effective resolution meets or exceeds target DPI.
 * Upscaler fails
 * Output dimensions do not match expected scale
 
-### 06-rebuild-pages (conditional)
+### 05-replace-images (conditional)
 
 **Purpose**
-Rebuild page-sized PDFs from upscaled images.
+Replace the original low-DPI image objects in the PDF with the upscaled versions, preserving vector content.
 
 **Outputs**
 
 ```
-06-rebuild-pages/boek/p012.fixed.pdf
+05-replace-images/boek.replaced.pdf
+05-replace-images/boek.replace.txt
 ```
 
-**Rules**
-
-* Exact original page size
-* Image placed at 100%, no scaling
-
-### 07-merge-pages
-
-**Purpose**
-Reassemble a complete document.
-
-**Logic**
-
-For each page index:
-
-* If page was fixed, use `pNNN.fixed.pdf`
-* Otherwise, use original `pNNN.pdf`
-
-**Outputs**
-
-```
-07-merge-pages/boek.merged.pdf
-07-merge-pages/boek.merge.txt
-```
-
-**Fail if**
-
-* Page count or page size differs
-
-### 08-normalize-pdf
+### 06-normalize-pdf
 
 **Purpose**
 Prepare final print-deliverable PDF.
@@ -272,11 +218,11 @@ Prepare final print-deliverable PDF.
 **Outputs**
 
 ```
-08-normalize-pdf/boek.print.pdf
-08-normalize-pdf/boek.normalize.txt
+06-normalize-pdf/boek.print.pdf
+06-normalize-pdf/boek.normalize.txt
 ```
 
-### 09-preflight
+### 07-preflight
 
 **Purpose**
 Final verification.
@@ -292,7 +238,7 @@ Final verification.
 **Outputs**
 
 ```
-09-preflight/boek.preflight.txt
+07-preflight/boek.preflight.txt
 ```
 
 **Fail if**
@@ -300,7 +246,7 @@ Final verification.
 * Page sizes differ
 * Low-DPI issues remain
 
-### 10-output
+### 08-output
 
 **Purpose**
 Final deliverables only.
@@ -308,9 +254,9 @@ Final deliverables only.
 **Contents**
 
 ```
-10-output/boek.print.pdf
-10-output/boek.preflight.txt
-10-output/boek.dpi.csv
+08-output/boek.print.pdf
+08-output/boek.preflight.txt
+08-output/boek.dpi.csv
 ```
 
 Only this folder is sent to the printer.
@@ -367,7 +313,7 @@ These are needed to run the pipeline end to end.
 * **qpdf**
   Used for:
 
-  * safe PDF splitting and merging
+  * safe PDF object inspection and replacement
   * sanity checks
   * metadata inspection
 
@@ -391,7 +337,7 @@ These are needed to run the pipeline end to end.
 * **Real-ESRGAN** (external, not via apt)
   Used for:
 
-  * upscaling rasterized pages that fall below target DPI
+  * upscaling extracted raster images that fall below target DPI
   * GPU-accelerated where available
 
 Recommended model:

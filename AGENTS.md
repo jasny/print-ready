@@ -6,14 +6,12 @@ This repository defines a stepwise, folder-based PDF pipeline. Each step reads f
 - `00-input/` source PDFs exported from PowerPoint (read-only)
 - `01-validate/` validation reports
 - `02-analyze-dpi/` DPI analysis and low-DPI page lists
-- `03-split-pages/` per-page PDFs under `03-split-pages/<doc>/pNNN.pdf`
-- `04-rasterize-lowdpi/` conditional rasterization outputs
-- `05-upscale/` conditional upscaled images and CSVs
-- `06-rebuild-pages/` conditional rebuilt page PDFs
-- `07-merge-pages/` merged PDF and logs
-- `08-normalize-pdf/` print-ready normalization outputs
-- `09-preflight/` final verification reports
-- `10-output/` deliverables only
+- `03-extract-images/` extracted raster images and metadata
+- `04-upscale-images/` upscaled images and CSVs
+- `05-replace-images/` PDFs with replaced image objects
+- `06-normalize-pdf/` print-ready normalization outputs
+- `07-preflight/` final verification reports
+- `08-output/` deliverables only
 
 ## Build, Test, and Development Commands
 No build or test commands are defined in this repo. The workflow is documented in `README.md`, and execution is expected to be script-driven by downstream tooling. If you add scripts later, document them here with examples such as:
@@ -31,7 +29,7 @@ No automated tests are currently specified. Validation is performed via the pipe
 
 ## Commit & Pull Request Guidelines
 **Commits**
-- Use concise, imperative subjects: `Add DPI analyzer`, `Fix merge step logging`.
+- Use concise, imperative subjects: `Add DPI analyzer`, `Fix replace step logging`.
 - Optional scope prefix if helpful: `pipeline: Add preflight check`.
 - Keep subjects under ~72 characters; add details in the body when needed.
 
