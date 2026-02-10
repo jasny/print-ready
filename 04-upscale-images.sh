@@ -47,8 +47,8 @@ if [[ "${FORCE_CPU:-}" != "1" ]]; then
   if [[ -n "${GPU_ID:-}" ]]; then
     gpu_id="${GPU_ID}"
   else
-    if command -v nvidia-smi >/dev/null 2>&1; then
-      gpu_count="$(nvidia-smi -L 2>/dev/null | grep -c '^GPU' || true)"
+    if command -v vulkaninfo >/dev/null 2>&1; then
+      gpu_count="$(vulkaninfo --summary 2>/dev/null | awk '/^GPU[0-9]+:/' | wc -l)"
       if [[ "$gpu_count" -eq 1 ]]; then
         gpu_id=0
       else
@@ -56,7 +56,7 @@ if [[ "${FORCE_CPU:-}" != "1" ]]; then
         exit 1
       fi
     else
-      echo "ERROR: GPU_ID is required (set to the NVIDIA device index, e.g., GPU_ID=1)." >&2
+      echo "ERROR: GPU_ID is required (set to the Vulkan device index, e.g., GPU_ID=1)." >&2
       exit 1
     fi
   fi
