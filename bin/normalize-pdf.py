@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
+import os
+import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pikepdf
 from pikepdf import PdfImage
-from PIL import Image, ImageCms
+from PIL import Image
 
 
 def eprint(*args, **kwargs):
@@ -32,9 +36,31 @@ def main():
         eprint(f"ERROR: ICC profile not found: {icc_profile}")
         sys.exit(1)
 
+    source_profile = os.environ.get("SOURCE_PROFILE", "")
+    if not source_profile:
+        for candidate in [
+            "/usr/share/color/icc/colord/sRGB.icc",
+            "/usr/share/color/icc/sRGB.icc",
+            "/usr/share/color/icc/ghostscript/srgb.icc",
+        ]:
+            if Path(candidate).is_file():
+                source_profile = candidate
+                break
+    if not source_profile or not Path(source_profile).is_file():
+        eprint("ERROR: SOURCE_PROFILE is not set and no system sRGB profile was found.")
+        sys.exit(1)
+
+    cmyk_intent = os.environ.get("CMYK_INTENT", "perceptual").strip().lower()
+    if cmyk_intent not in {"perceptual", "relative", "saturation", "absolute"}:
+        eprint(f"ERROR: invalid CMYK_INTENT: {cmyk_intent}")
+        sys.exit(1)
+
+    convert_bin = shutil.which("convert")
+    if not convert_bin:
+        eprint("ERROR: ImageMagick 'convert' command not found.")
+        sys.exit(1)
+
     icc_bytes = icc_profile.read_bytes()
-    out_profile = ImageCms.ImageCmsProfile(str(icc_profile))
-    srgb_profile = ImageCms.createProfile("sRGB")
 
     with pikepdf.open(input_pdf) as pdf:
         icc_stream = pdf.make_stream(icc_bytes)
@@ -77,9 +103,26 @@ def main():
                 if img.mode == "RGBA":
                     img = img.convert("RGB")
 
-                cmyk = ImageCms.profileToProfile(
-                    img, srgb_profile, out_profile, outputMode="CMYK"
-                )
+                with tempfile.TemporaryDirectory(prefix="normalize-cmyk-") as td:
+                    src_path = Path(td) / "src.png"
+                    dst_path = Path(td) / "dst.tif"
+                    img.save(src_path)
+                    subprocess.run(
+                        [
+                            convert_bin,
+                            str(src_path),
+                            "-profile",
+                            source_profile,
+                            "-intent",
+                            cmyk_intent,
+                            "-black-point-compensation",
+                            "-profile",
+                            str(icc_profile),
+                            str(dst_path),
+                        ],
+                        check=True,
+                    )
+                    cmyk = Image.open(dst_path).convert("CMYK")
 
                 obj.ColorSpace = pikepdf.Name("/DeviceCMYK")
                 obj.BitsPerComponent = 8
