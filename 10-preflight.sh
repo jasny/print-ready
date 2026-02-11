@@ -28,7 +28,8 @@ fi
 target_dpi="${TARGET_DPI:-300}"
 min_dpi="$(awk -v t="$target_dpi" 'BEGIN { printf "%.2f", t * 0.95 }')"
 pdf_standard="${PDF_STANDARD:-PDF/X-4}"
-color_profile="${COLOR_PROFILE:-}"
+default_profile="profiles/PSO_Uncoated_ISO12647_eci.icc"
+color_profile="${COLOR_PROFILE:-$default_profile}"
 
 failures=()
 
