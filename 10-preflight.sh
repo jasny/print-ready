@@ -68,6 +68,14 @@ if [[ -n "$page_size_mismatch" ]]; then
   failures+=("$page_size_mismatch")
 fi
 
+page_size="unknown"
+if [[ -n "$orig_pages" && "$orig_pages" -gt 0 ]]; then
+  page_size="$(pdfinfo -f 1 -l 1 -box "$src_pdf" | awk '$1=="Page" && $2==1 && $3=="size:" {print $4" x "$6" pts"; exit}')"
+  if [[ -z "$page_size" ]]; then
+    page_size="unknown"
+  fi
+fi
+
 qpdf_check_output=""
 if ! qpdf_check_output="$(qpdf --check "$src_pdf" 2>&1)"; then
   failures+=("qpdf check failed")
@@ -160,6 +168,7 @@ echo "Input: $input_pdf"
 echo "Normalized: $src_pdf"
 echo "Pages (original): ${orig_pages:-unknown}"
 echo "Pages (normalized): ${src_pages:-unknown}"
+echo "Page size: $page_size"
 echo "Target DPI: $target_dpi"
 echo "Min DPI (5% margin): $min_dpi"
 echo "PDF_STANDARD: $pdf_standard"
