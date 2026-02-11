@@ -68,11 +68,19 @@ if [[ -n "$page_size_mismatch" ]]; then
   failures+=("$page_size_mismatch")
 fi
 
-page_size="unknown"
+page_size_mm="unknown"
 if [[ -n "$orig_pages" && "$orig_pages" -gt 0 ]]; then
-  page_size="$(pdfinfo -f 1 -l 1 -box "$src_pdf" | awk '$1=="Page" && $2==1 && $3=="size:" {print $4" x "$6" pts"; exit}')"
-  if [[ -z "$page_size" ]]; then
-    page_size="unknown"
+  page_size_mm="$(pdfinfo -f 1 -l 1 -box "$src_pdf" | awk '
+    $1=="Page" && $2==1 && $3=="size:" {
+      w_pt=$4+0; h_pt=$6+0;
+      w_mm=w_pt*25.4/72.0;
+      h_mm=h_pt*25.4/72.0;
+      printf "%.2f x %.2f mm", w_mm, h_mm;
+      exit
+    }
+  ')"
+  if [[ -z "$page_size_mm" ]]; then
+    page_size_mm="unknown"
   fi
 fi
 
@@ -168,7 +176,7 @@ echo "Input: $input_pdf"
 echo "Normalized: $src_pdf"
 echo "Pages (original): ${orig_pages:-unknown}"
 echo "Pages (normalized): ${src_pages:-unknown}"
-echo "Page size: $page_size"
+echo "Page size: $page_size_mm"
 echo "Target DPI: $target_dpi"
 echo "Min DPI (5% margin): $min_dpi"
 echo "PDF_STANDARD: $pdf_standard"
