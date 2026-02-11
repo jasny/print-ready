@@ -96,7 +96,7 @@ rgb_count=0
 low_count=0
 rgb_nonimage_count=0
 
-pdfimages -list "$src_pdf" | awk -v target="$target_dpi" '
+pdfimages -list "$src_pdf" 2> >(grep -Fv "Syntax Warning: GfxUnivariateShading: function with wrong output size" >&2) | awk -v target="$target_dpi" '
   NR <= 2 { next }
   {
     type=$3
