@@ -75,8 +75,10 @@ fi
 
 tmp_low="$(mktemp)"
 tmp_rgb="$(mktemp)"
+tmp_rgb_nonimage="$(mktemp)"
 rgb_count=0
 low_count=0
+rgb_nonimage_count=0
 
 pdfimages -list "$src_pdf" | awk -v target="$target_dpi" '
   NR <= 2 { next }
@@ -124,6 +126,36 @@ fi
     failures+=("low-DPI images remain")
   fi
 
+# Detect RGB usage in non-image PDF objects (e.g., page transparency groups).
+qpdf --json "$src_pdf" | jq -r '
+  .qpdf[1]
+  | to_entries[]
+  | .key as $obj
+  | .value as $v
+  | ($v.stream? | if type == "object" then (.dict? // {}) else {} end) as $sd
+  | ($v.value? | if type == "object" then . else {} end) as $vv
+  | ((($sd."/Subtype" // $vv."/Subtype" // "") == "/Image")) as $is_image
+  | if $is_image then empty else
+      [ paths(scalars) as $p
+        | (getpath($p)) as $val
+        | select($val == "/DeviceRGB" or $val == "/CalRGB")
+        | $p
+      ] as $paths
+      | if ($paths | length) > 0 then
+          $obj + "|" + ($paths | map(map(tostring) | join(".")) | join(";"))
+        else
+          empty
+        end
+    end
+' > "$tmp_rgb_nonimage"
+
+if [[ -s "$tmp_rgb_nonimage" ]]; then
+  rgb_nonimage_count="$(wc -l < "$tmp_rgb_nonimage" | tr -d ' ')"
+fi
+if [[ "$rgb_nonimage_count" -gt 0 ]]; then
+  failures+=("RGB non-image objects remain")
+fi
+
 echo "Input: $input_pdf"
 echo "Normalized: $src_pdf"
 echo "Pages (original): ${orig_pages:-unknown}"
@@ -133,6 +165,7 @@ echo "Min DPI (5% margin): $min_dpi"
 echo "PDF_STANDARD: $pdf_standard"
 echo "COLOR_PROFILE: ${color_profile:-none}"
 echo "RGB images: $rgb_count"
+echo "RGB non-image objects: $rgb_nonimage_count"
 echo "Low-DPI images: $low_count"
 if [[ -n "$qpdf_check_output" ]]; then
   echo "qpdf check:"
@@ -146,6 +179,10 @@ if [[ "$low_count" -gt 0 ]]; then
   echo "Low-DPI objects:"
   awk -F, '{printf "  LOW_DPI: %s (object %s,%s) color=%s enc=%s type=%s x_ppi=%.2f y_ppi=%.2f min_ppi=%.2f size=%sx%s\n", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11}' "$tmp_low"
 fi
+if [[ "$rgb_nonimage_count" -gt 0 ]]; then
+  echo "RGB non-image objects (qpdf object|json paths):"
+  sed 's/^/  /' "$tmp_rgb_nonimage"
+fi
 if [[ "${#failures[@]}" -eq 0 ]]; then
   echo "Status: OK"
 else
@@ -155,7 +192,7 @@ else
   done
 fi
 
-rm -f "$tmp_low" "$tmp_rgb" "${tmp_low}.count" "${tmp_rgb}.count"
+rm -f "$tmp_low" "$tmp_rgb" "$tmp_rgb_nonimage" "${tmp_low}.count" "${tmp_rgb}.count"
 
 if [[ "${#failures[@]}" -ne 0 ]]; then
   echo "Preflight failed." >&2
