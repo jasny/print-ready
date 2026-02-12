@@ -33,7 +33,7 @@ output_pdf="${output_dir}/${base_name}.print.pdf"
 mkdir -p "$output_dir"
 
 pdf_standard="${PDF_STANDARD:-PDF/X-4}"
-default_profile="profiles/PSO_Uncoated_ISO12647_eci.icc"
+default_profile="${DEFAULT_COLOR_PROFILE:-/usr/share/color/icc/colord/FOGRA39L_coated.icc}"
 color_profile="${COLOR_PROFILE:-$default_profile}"
 normalize_dpi="${NORMALIZE_DPI:-${TARGET_DPI:-300}}"
 

@@ -123,8 +123,8 @@ def main():
             {
                 "/Type": pikepdf.Name("/OutputIntent"),
                 "/S": pikepdf.Name("/GTS_PDFX"),
-                "/OutputConditionIdentifier": "Uncoated FOGRA29 (ISO 12647-2:2004)",
-                "/Info": "Uncoated FOGRA29 (ISO 12647-2:2004)",
+                "/OutputConditionIdentifier": "Coated FOGRA39 (ISO 12647-2:2004)",
+                "/Info": "Coated FOGRA39 (ISO 12647-2:2004)",
                 "/DestOutputProfile": icc_stream,
             }
         )

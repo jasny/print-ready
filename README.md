@@ -314,7 +314,7 @@ MAX_UPSCALE=4.0
 UPSCALER_MODEL=RealESRGAN_x4plus
 IMAGE_FORMAT=png
 PDF_STANDARD=PDF/X-4
-COLOR_PROFILE=profiles/PSO_Uncoated_ISO12647_eci.icc
+COLOR_PROFILE=/usr/share/color/icc/colord/FOGRA39L_coated.icc
 ```
 
 Each report must log the effective configuration used.
@@ -331,7 +331,7 @@ These requirements are summarized from New Energy’s Dutch print delivery speci
 - Deep black (typically for covers): **C50 M40 Y40 K100**. Text/line art in body should be **K100 only**.
 - Include **trim marks** on export; keep offsets outside the bleed.
 - Deliver **cPDF** (certified PDF) and export using PDF/X‑1a:2001 presets.
-Profile used by default: `profiles/PSO_Uncoated_ISO12647_eci.icc` (FOGRA29 / ISO 12647-2:2004).
+Profile used by default: `/usr/share/color/icc/colord/FOGRA39L_coated.icc` (Coated FOGRA39 / ISO 12647-2:2004).
 
 ## Agent instructions
 
