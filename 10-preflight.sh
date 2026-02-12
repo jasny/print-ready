@@ -92,9 +92,11 @@ fi
 tmp_low="$(mktemp)"
 tmp_rgb="$(mktemp)"
 tmp_rgb_nonimage="$(mktemp)"
+tmp_rgb_ops="$(mktemp)"
 rgb_count=0
 low_count=0
 rgb_nonimage_count=0
+rgb_ops_count=0
 
 pdfimages -list "$src_pdf" 2> >(grep -Fv "Syntax Warning: GfxUnivariateShading: function with wrong output size" >&2) | awk -v target="$target_dpi" '
   NR <= 2 { next }
@@ -172,6 +174,17 @@ if [[ "$rgb_nonimage_count" -gt 0 ]]; then
   failures+=("RGB non-image objects remain")
 fi
 
+# Detect RGB paint operators in content streams (e.g., vector/text graphics).
+tmp_qdf="$(mktemp --suffix=.qdf.pdf)"
+qpdf --qdf --object-streams=disable --stream-data=uncompress "$src_pdf" "$tmp_qdf"
+grep -aEn '(^|[^0-9.])([0-9]+(\.[0-9]+)?)[[:space:]]+([0-9]+(\.[0-9]+)?)[[:space:]]+([0-9]+(\.[0-9]+)?)[[:space:]]+(rg|RG)([^A-Za-z]|$)' "$tmp_qdf" > "$tmp_rgb_ops" || true
+if [[ -s "$tmp_rgb_ops" ]]; then
+  rgb_ops_count="$(wc -l < "$tmp_rgb_ops" | tr -d ' ')"
+fi
+if [[ "$rgb_ops_count" -gt 0 ]]; then
+  failures+=("RGB content operators remain")
+fi
+
 echo "Input: $input_pdf"
 echo "Normalized: $src_pdf"
 echo "Pages (original): ${orig_pages:-unknown}"
@@ -183,6 +196,7 @@ echo "PDF_STANDARD: $pdf_standard"
 echo "COLOR_PROFILE: ${color_profile:-none}"
 echo "RGB images: $rgb_count"
 echo "RGB non-image objects: $rgb_nonimage_count"
+echo "RGB content operators (rg/RG): $rgb_ops_count"
 echo "Low-DPI images: $low_count"
 if [[ -n "$qpdf_check_output" ]]; then
   echo "qpdf check:"
@@ -200,6 +214,10 @@ if [[ "$rgb_nonimage_count" -gt 0 ]]; then
   echo "RGB non-image objects (qpdf object|json paths):"
   sed 's/^/  /' "$tmp_rgb_nonimage"
 fi
+if [[ "$rgb_ops_count" -gt 0 ]]; then
+  echo "RGB content operator matches (first 20):"
+  sed -n '1,20p' "$tmp_rgb_ops" | sed 's/^/  /'
+fi
 if [[ "${#failures[@]}" -eq 0 ]]; then
   echo "Status: OK"
 else
@@ -209,7 +227,7 @@ else
   done
 fi
 
-rm -f "$tmp_low" "$tmp_rgb" "$tmp_rgb_nonimage" "${tmp_low}.count" "${tmp_rgb}.count"
+rm -f "$tmp_low" "$tmp_rgb" "$tmp_rgb_nonimage" "$tmp_rgb_ops" "$tmp_qdf" "${tmp_low}.count" "${tmp_rgb}.count"
 
 if [[ "${#failures[@]}" -ne 0 ]]; then
   echo "Preflight failed." >&2
