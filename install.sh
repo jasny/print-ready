@@ -20,6 +20,7 @@ $SUDO apt-get install -y --no-install-recommends \
   curl \
   git \
   unzip \
+  zint \
   ca-certificates \
   python3 \
   python3-venv \

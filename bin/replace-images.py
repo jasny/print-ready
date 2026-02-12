@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import re
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pikepdf
@@ -13,6 +15,37 @@ def eprint(*args, **kwargs):
 
 def usage():
     eprint("Usage: replace-images.py <input-pdf>")
+
+
+def render_eps_to_image(eps_path: Path, width: int, height: int) -> Image.Image:
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        tmp_png = Path(tmp.name)
+    try:
+        # Render EPS to a high-resolution PNG, then resize to the exact object size.
+        subprocess.run(
+            [
+                "gs",
+                "-dSAFER",
+                "-dBATCH",
+                "-dNOPAUSE",
+                "-sDEVICE=pngalpha",
+                "-dEPSCrop",
+                "-r600",
+                f"-sOutputFile={tmp_png}",
+                str(eps_path),
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        with Image.open(tmp_png) as im:
+            return im.convert("RGBA").resize((width, height), Image.Resampling.LANCZOS)
+    finally:
+        try:
+            tmp_png.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def main():
@@ -43,8 +76,8 @@ def main():
     for src_dir in [up_dir, resize_dir]:
         if not src_dir.is_dir():
             continue
-        for path in src_dir.glob("obj-*-*.up.png"):
-            m = re.match(r"obj-(\d+)-(\d+)\.up\.png", path.name)
+        for path in src_dir.iterdir():
+            m = re.match(r"obj-(\d+)-(\d+)\.up\.(png|eps)$", path.name, flags=re.IGNORECASE)
             if not m:
                 continue
             obj_id = int(m.group(1))
@@ -67,8 +100,16 @@ def main():
                 rep.write(f"SKIP obj {obj_id} {gen}: not found\n")
                 continue
 
-            with Image.open(img_path) as im:
-                if im.mode == "L":
+            prefer_gray = obj.get("/ColorSpace") == pikepdf.Name("/DeviceGray")
+            im = None
+            try:
+                if img_path.suffix.lower() == ".eps":
+                    im = render_eps_to_image(img_path, int(obj.Width), int(obj.Height))
+                else:
+                    with Image.open(img_path) as src_im:
+                        im = src_im.copy()
+
+                if prefer_gray:
                     out_mode = "L"
                     im = im.convert("L")
                 else:
@@ -88,6 +129,9 @@ def main():
                     del obj["/Matte"]
                 obj.write(data)
                 rep.write(f"REPLACED obj {obj_id} {gen} -> {img_path}\n")
+            finally:
+                if im is not None:
+                    im.close()
 
             # Replace smask if available
             smask_obj = obj.get("/SMask")
