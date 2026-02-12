@@ -21,6 +21,7 @@ $SUDO apt-get install -y --no-install-recommends \
   git \
   unzip \
   zint \
+  zxing-cpp-tools \
   ca-certificates \
   python3 \
   python3-venv \

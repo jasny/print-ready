@@ -3,6 +3,7 @@ set -euo pipefail
 
 usage() {
   echo "Usage: $0 <03-extract-images/<doc>/obj-*-*.png> [barcode-data]" >&2
+  echo "If barcode-data is omitted, script tries to decode via ZXingReader." >&2
   echo "Or set BARCODE_DATA in the environment." >&2
 }
 
@@ -24,8 +25,23 @@ fi
 
 barcode_data="${2:-${BARCODE_DATA:-}}"
 if [[ -z "$barcode_data" ]]; then
-  echo "ERROR: barcode data is required (arg2 or BARCODE_DATA)." >&2
-  exit 1
+  if ! command -v ZXingReader >/dev/null 2>&1; then
+    echo "ERROR: barcode data not provided and ZXingReader not found." >&2
+    echo "Install zxing-cpp-tools or pass barcode data as arg2." >&2
+    exit 1
+  fi
+  # ZXingReader output varies by version; accept both "Text: <value>" and plain value.
+  decoded="$(
+    ZXingReader "$src_img" 2>/dev/null \
+      | awk -F': ' '/^Text: / {print $2; found=1} END {if (!found && NR==1) print $0}'
+  )"
+  barcode_data="$(echo "$decoded" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^\"//' -e 's/\"$//')"
+  if [[ -z "$barcode_data" ]]; then
+    echo "ERROR: could not decode barcode from: $src_img" >&2
+    echo "Provide barcode data as arg2 or BARCODE_DATA." >&2
+    exit 1
+  fi
+  echo "Decoded barcode data: $barcode_data"
 fi
 
 barcode_type="${BARCODE_TYPE:-13}" # 13 = EAN-13 in zint
