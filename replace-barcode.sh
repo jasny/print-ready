@@ -5,7 +5,7 @@ usage() {
   echo "Usage: $0 <03-extract-images/<doc>/obj-*-*.png> [barcode-data]" >&2
   echo "If barcode-data is omitted, script tries to decode via ZXingReader." >&2
   echo "Or set BARCODE_DATA in the environment." >&2
-  echo "Deep black color can be overridden with DEEP_BLACK_CMYK (default: 0.5 0.4 0.4 1)." >&2
+  echo "Barcode black can be overridden with DEEP_BLACK_CMYK (default: 0 0 0 1)." >&2
 }
 
 if [[ $# -lt 1 || $# -gt 2 ]]; then
@@ -46,7 +46,7 @@ if [[ -z "$barcode_data" ]]; then
 fi
 
 barcode_type="${BARCODE_TYPE:-13}" # 13 = EAN-13 in zint
-deep_black_cmyk="${DEEP_BLACK_CMYK:-0.5 0.4 0.4 1}"
+deep_black_cmyk="${DEEP_BLACK_CMYK:-0 0 0 1}"
 paper_white_cmyk="${PAPER_WHITE_CMYK:-0 0 0 0}"
 out_name="$(basename "$src_img")"
 if [[ ! "$out_name" =~ ^obj-[0-9]+-[0-9]+\.png$ ]]; then

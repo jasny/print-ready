@@ -2,6 +2,7 @@
 import re
 import sys
 from pathlib import Path
+import os
 
 import pikepdf
 from pikepdf import PdfImage
@@ -31,16 +32,27 @@ def is_near_black(r: float, g: float, b: float) -> bool:
     return abs(r - g) <= 0.03 and abs(g - b) <= 0.03 and max(r, g, b) <= 0.25
 
 
-def rgb_to_cmyk_tuple(r: float, g: float, b: float, srgb_profile, out_profile):
+def parse_cmyk_override(raw: str):
+    parts = raw.strip().split()
+    if len(parts) != 4:
+        raise ValueError("expected four CMYK values")
+    vals = [float(x) for x in parts]
+    for v in vals:
+        if v < 0.0 or v > 1.0:
+            raise ValueError("CMYK values must be in [0,1]")
+    return tuple(vals)
+
+
+def rgb_to_cmyk_tuple(r: float, g: float, b: float, srgb_profile, out_profile, forced_black):
     if is_near_black(r, g, b):
-        return (0.5, 0.4, 0.4, 1.0), True
+        return forced_black, True
     img = Image.new("RGB", (1, 1), (int(round(r * 255)), int(round(g * 255)), int(round(b * 255))))
     cmyk = ImageCms.profileToProfile(img, srgb_profile, out_profile, outputMode="CMYK")
     c, m, y, k = cmyk.getpixel((0, 0))
     return (c / 255.0, m / 255.0, y / 255.0, k / 255.0), False
 
 
-def rewrite_rgb_operators(stream_bytes: bytes, srgb_profile, out_profile):
+def rewrite_rgb_operators(stream_bytes: bytes, srgb_profile, out_profile, forced_black):
     # Match: "<r> <g> <b> rg" or "... RG"
     pattern = re.compile(
         rb"(?P<prefix>(^|[\s\[\(]))"
@@ -60,7 +72,7 @@ def rewrite_rgb_operators(stream_bytes: bytes, srgb_profile, out_profile):
         b = float(match.group("b"))
         key = (round(r, 6), round(g, 6), round(b, 6))
         if key not in cache:
-            cache[key] = rgb_to_cmyk_tuple(r, g, b, srgb_profile, out_profile)
+            cache[key] = rgb_to_cmyk_tuple(r, g, b, srgb_profile, out_profile, forced_black)
         (c, m, y, k), forced_black = cache[key]
         if forced_black:
             deep_black_ops += 1
@@ -96,6 +108,7 @@ def main():
     icc_bytes = icc_profile.read_bytes()
     out_profile = ImageCms.ImageCmsProfile(str(icc_profile))
     srgb_profile = ImageCms.createProfile("sRGB")
+    forced_black = parse_cmyk_override(os.getenv("DARK_RGB_CMYK", "0 0 0 1"))
 
     with pikepdf.open(input_pdf) as pdf:
         icc_stream = pdf.make_stream(icc_bytes)
@@ -208,7 +221,7 @@ def main():
             try:
                 stream_obj = pdf.get_object((obj_id, gen))
                 raw = stream_obj.read_bytes()
-                rewritten, changed, deep_black = rewrite_rgb_operators(raw, srgb_profile, out_profile)
+                rewritten, changed, deep_black = rewrite_rgb_operators(raw, srgb_profile, out_profile, forced_black)
                 if changed > 0:
                     stream_obj.write(rewritten)
                     stream_rgb_ops += changed
