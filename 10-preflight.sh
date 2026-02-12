@@ -93,10 +93,12 @@ tmp_low="$(mktemp)"
 tmp_rgb="$(mktemp)"
 tmp_rgb_nonimage="$(mktemp)"
 tmp_rgb_ops="$(mktemp)"
+tmp_shading_mismatch="$(mktemp)"
 rgb_count=0
 low_count=0
 rgb_nonimage_count=0
 rgb_ops_count=0
+shading_mismatch_count=0
 
 pdfimages -list "$src_pdf" 2> >(grep -Fv "Syntax Warning: GfxUnivariateShading: function with wrong output size" >&2) | awk -v target="$target_dpi" '
   NR <= 2 { next }
@@ -185,6 +187,60 @@ if [[ "$rgb_ops_count" -gt 0 ]]; then
   failures+=("RGB content operators remain")
 fi
 
+# Detect shading/function component mismatches (often rejected by strict viewers/RIPs).
+qpdf --json "$src_pdf" | jq -r '
+  def objdict($objs; $r):
+      if ($r | type) == "string" and ($r | test("^[0-9]+ 0 R$")) then
+        (($objs["obj:" + $r].value // $objs["obj:" + $r].stream.dict) // null)
+      elif ($r | type) == "object" then
+        $r
+      else
+        null
+      end;
+  def cs_components($objs; $cs):
+      if $cs == "/DeviceCMYK" then 4
+      elif ($cs == "/DeviceRGB" or $cs == "/CalRGB") then 3
+      elif $cs == "/DeviceGray" then 1
+      elif (($cs | type) == "array" and ($cs | length) >= 2 and $cs[0] == "/ICCBased") then
+        ((objdict($objs; $cs[1]) | ."/N"?) // null)
+      else
+        null
+      end;
+  def fn_outputs($objs; $fn):
+      (objdict($objs; $fn)) as $f
+      | if ($f | type) != "object" then null
+        elif ($f."/FunctionType"? == 2) then
+          ((($f."/C0"? // []) | length) as $c0
+            | (($f."/C1"? // []) | length) as $c1
+            | if $c0 > 0 then $c0 elif $c1 > 0 then $c1 else 1 end)
+        elif ($f."/FunctionType"? == 0) then
+          (((($f."/Range"? // []) | length) / 2) | floor)
+        elif ($f."/FunctionType"? == 3) then
+          (($f."/Functions"? // [])
+            | map(fn_outputs($objs; .))
+            | map(select(. != null))
+            | if length > 0 then max else null end)
+        else
+          null
+        end;
+  .qpdf[1] as $objs
+  | $objs
+  | to_entries[]
+  | .key as $obj_key
+  | ((.value.value // .value.stream.dict) // {}) as $d
+  | select($d."/ShadingType"? != null)
+  | (cs_components($objs; $d."/ColorSpace"?) // null) as $csn
+  | (fn_outputs($objs; $d."/Function"?) // null) as $fout
+  | select($csn != null and $fout != null and $csn != $fout)
+  | "\($obj_key)|Shading colorspace components=\($csn), function outputs=\($fout)"
+' > "$tmp_shading_mismatch"
+if [[ -s "$tmp_shading_mismatch" ]]; then
+  shading_mismatch_count="$(wc -l < "$tmp_shading_mismatch" | tr -d ' ')"
+fi
+if [[ "$shading_mismatch_count" -gt 0 ]]; then
+  failures+=("shading/function component mismatches remain")
+fi
+
 echo "Input: $input_pdf"
 echo "Normalized: $src_pdf"
 echo "Pages (original): ${orig_pages:-unknown}"
@@ -197,6 +253,7 @@ echo "COLOR_PROFILE: ${color_profile:-none}"
 echo "RGB images: $rgb_count"
 echo "RGB non-image objects: $rgb_nonimage_count"
 echo "RGB content operators (rg/RG): $rgb_ops_count"
+echo "Shading/function mismatches: $shading_mismatch_count"
 echo "Low-DPI images: $low_count"
 if [[ -n "$qpdf_check_output" ]]; then
   echo "qpdf check:"
@@ -218,6 +275,10 @@ if [[ "$rgb_ops_count" -gt 0 ]]; then
   echo "RGB content operator matches (first 20):"
   sed -n '1,20p' "$tmp_rgb_ops" | sed 's/^/  /'
 fi
+if [[ "$shading_mismatch_count" -gt 0 ]]; then
+  echo "Shading/function mismatches:"
+  sed 's/^/  /' "$tmp_shading_mismatch"
+fi
 if [[ "${#failures[@]}" -eq 0 ]]; then
   echo "Status: OK"
 else
@@ -227,7 +288,7 @@ else
   done
 fi
 
-rm -f "$tmp_low" "$tmp_rgb" "$tmp_rgb_nonimage" "$tmp_rgb_ops" "$tmp_qdf" "${tmp_low}.count" "${tmp_rgb}.count"
+rm -f "$tmp_low" "$tmp_rgb" "$tmp_rgb_nonimage" "$tmp_rgb_ops" "$tmp_shading_mismatch" "$tmp_qdf" "${tmp_low}.count" "${tmp_rgb}.count"
 
 if [[ "${#failures[@]}" -ne 0 ]]; then
   echo "Preflight failed." >&2

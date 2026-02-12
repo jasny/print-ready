@@ -17,24 +17,6 @@ def usage():
     eprint("Usage: normalize-pdf.py <input-pdf> <output-pdf> <icc-profile> <pdf-standard>")
 
 
-def is_rgb_colorspace(value) -> bool:
-    if value == pikepdf.Name("/DeviceRGB") or value == pikepdf.Name("/CalRGB"):
-        return True
-    if isinstance(value, pikepdf.Array) and len(value) >= 2 and value[0] == pikepdf.Name("/ICCBased"):
-        try:
-            icc = value[1]
-            return icc.get("/N") == 3
-        except Exception:
-            return False
-    return False
-
-
-def convert_colorspace_entry(value):
-    if is_rgb_colorspace(value):
-        return pikepdf.Name("/DeviceCMYK"), 1
-    return value, 0
-
-
 def format_pdf_num(v: float) -> str:
     s = f"{v:.4f}"
     s = s.rstrip("0").rstrip(".")
@@ -185,51 +167,13 @@ def main():
             if not isinstance(obj, pikepdf.Dictionary):
                 continue
 
-            # Common non-image colorspace keys.
-            for cs_key in ("/CS", "/ColorSpace"):
-                if cs_key in obj:
-                    new_cs, changed = convert_colorspace_entry(obj[cs_key])
-                    if changed:
-                        obj[cs_key] = new_cs
-                        nonimage_converted += changed
-
-            # Page/Form transparency group colorspace.
+            # Only convert transparency group colorspace.
+            # Broad dictionary colorspace rewrites can break shading/function consistency.
             group = obj.get("/Group")
             if isinstance(group, pikepdf.Dictionary) and "/CS" in group:
-                new_cs, changed = convert_colorspace_entry(group["/CS"])
-                if changed:
-                    group["/CS"] = new_cs
-                    nonimage_converted += changed
-
-            # Resource ColorSpace dictionary values.
-            resources = obj.get("/Resources")
-            if isinstance(resources, pikepdf.Dictionary):
-                res_cs = resources.get("/ColorSpace")
-                if isinstance(res_cs, pikepdf.Dictionary):
-                    for name in list(res_cs.keys()):
-                        new_cs, changed = convert_colorspace_entry(res_cs[name])
-                        if changed:
-                            res_cs[name] = new_cs
-                            nonimage_converted += changed
-
-                # Resource Shading dictionary entries.
-                res_shading = resources.get("/Shading")
-                if isinstance(res_shading, pikepdf.Dictionary):
-                    for name in list(res_shading.keys()):
-                        shading = res_shading[name]
-                        if isinstance(shading, pikepdf.Dictionary) and "/ColorSpace" in shading:
-                            new_cs, changed = convert_colorspace_entry(shading["/ColorSpace"])
-                            if changed:
-                                shading["/ColorSpace"] = new_cs
-                                nonimage_converted += changed
-
-            # Direct shading dictionary on this object.
-            shading = obj.get("/Shading")
-            if isinstance(shading, pikepdf.Dictionary) and "/ColorSpace" in shading:
-                new_cs, changed = convert_colorspace_entry(shading["/ColorSpace"])
-                if changed:
-                    shading["/ColorSpace"] = new_cs
-                    nonimage_converted += changed
+                if group["/CS"] == pikepdf.Name("/DeviceRGB") or group["/CS"] == pikepdf.Name("/CalRGB"):
+                    group["/CS"] = pikepdf.Name("/DeviceCMYK")
+                    nonimage_converted += 1
 
         if converted:
             eprint(f"Converted RGB images: {converted}")
