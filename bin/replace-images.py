@@ -2,10 +2,10 @@
 import re
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import pikepdf
+from pikepdf import Array
 from PIL import Image
 
 
@@ -17,21 +17,18 @@ def usage():
     eprint("Usage: replace-images.py <input-pdf>")
 
 
-def render_eps_to_image(eps_path: Path, width: int, height: int) -> Image.Image:
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-        tmp_png = Path(tmp.name)
+def build_form_from_eps(dest_pdf: pikepdf.Pdf, eps_path: Path):
+    eps_pdf = eps_path.with_suffix(".tmp.pdf")
     try:
-        # Render EPS to a high-resolution PNG, then resize to the exact object size.
         subprocess.run(
             [
                 "gs",
                 "-dSAFER",
                 "-dBATCH",
                 "-dNOPAUSE",
-                "-sDEVICE=pngalpha",
+                "-sDEVICE=pdfwrite",
                 "-dEPSCrop",
-                "-r600",
-                f"-sOutputFile={tmp_png}",
+                f"-sOutputFile={eps_pdf}",
                 str(eps_path),
             ],
             check=True,
@@ -39,11 +36,18 @@ def render_eps_to_image(eps_path: Path, width: int, height: int) -> Image.Image:
             stderr=subprocess.PIPE,
             text=True,
         )
-        with Image.open(tmp_png) as im:
-            return im.convert("RGBA").resize((width, height), Image.Resampling.LANCZOS)
+        with pikepdf.open(eps_pdf) as src_pdf:
+            form_stream = src_pdf.pages[0].as_form_xobject()
+            imported = dest_pdf.copy_foreign(form_stream)
+            bbox = imported.BBox
+            w = max(0.001, float(bbox[2]) - float(bbox[0]))
+            h = max(0.001, float(bbox[3]) - float(bbox[1]))
+            # Make form behave like an image XObject (unit-square semantics).
+            imported.Matrix = Array([1.0 / w, 0, 0, 1.0 / h, 0, 0])
+            return imported
     finally:
         try:
-            tmp_png.unlink(missing_ok=True)
+            eps_pdf.unlink(missing_ok=True)
         except Exception:
             pass
 
@@ -100,15 +104,26 @@ def main():
                 rep.write(f"SKIP obj {obj_id} {gen}: not found\n")
                 continue
 
-            prefer_gray = obj.get("/ColorSpace") == pikepdf.Name("/DeviceGray")
-            im = None
-            try:
-                if img_path.suffix.lower() == ".eps":
-                    im = render_eps_to_image(img_path, int(obj.Width), int(obj.Height))
-                else:
-                    with Image.open(img_path) as src_im:
-                        im = src_im.copy()
-
+            if img_path.suffix.lower() == ".eps":
+                form_xobj = build_form_from_eps(pdf, img_path)
+                obj.Type = pikepdf.Name("/XObject")
+                obj.Subtype = pikepdf.Name("/Form")
+                obj.FormType = 1
+                obj.BBox = form_xobj.BBox
+                obj.Matrix = form_xobj.Matrix
+                if "/Resources" in form_xobj:
+                    obj.Resources = form_xobj.Resources
+                if "/Group" in form_xobj:
+                    obj.Group = form_xobj.Group
+                for key in ["/Width", "/Height", "/BitsPerComponent", "/ColorSpace", "/SMask", "/Matte", "/Filter", "/DecodeParms"]:
+                    if key in obj:
+                        del obj[key]
+                obj.write(form_xobj.read_bytes())
+                rep.write(f"REPLACED obj {obj_id} {gen} -> {img_path} (vector form)\n")
+            else:
+                prefer_gray = obj.get("/ColorSpace") == pikepdf.Name("/DeviceGray")
+                with Image.open(img_path) as src_im:
+                    im = src_im.copy()
                 if prefer_gray:
                     out_mode = "L"
                     im = im.convert("L")
@@ -129,9 +144,7 @@ def main():
                     del obj["/Matte"]
                 obj.write(data)
                 rep.write(f"REPLACED obj {obj_id} {gen} -> {img_path}\n")
-            finally:
-                if im is not None:
-                    im.close()
+                im.close()
 
             # Replace smask if available
             smask_obj = obj.get("/SMask")
