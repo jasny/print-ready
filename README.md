@@ -269,7 +269,7 @@ For **PDF/X-4**, normalization embeds the required output intent (ICC profile) w
 
 * Flatten transparency
 * Convert to CMYK
-* Export to required PDF standard (e.g. PDF/X-1a)
+* Export to required PDF standard (PDF/X-4)
 * Disable resampling
 
 **Outputs**
@@ -326,11 +326,11 @@ These requirements are summarized from New Energy’s Dutch print delivery speci
 - Images should be **≥300 dpi**; below **240 dpi** risks visible quality loss. Avoid web‑sourced images due to low quality/rights.
 - Add **3 mm bleed** for inside pages; bleed artwork must extend into the bleed area.
 - Minimum line thickness: **0.1 mm** (or **0.4 mm** for foil finishes).
-- **Flatten transparency** and export as **PDF/X-1a:2001** for print delivery.
+- Export as **PDF/X-4** for print delivery in this pipeline (transparency preserved).
 - Use **CMYK only** (no RGB); total ink coverage should not exceed **280%**.
 - Deep black (typically for covers): **C50 M40 Y40 K100**. Text/line art in body should be **K100 only**.
 - Include **trim marks** on export; keep offsets outside the bleed.
-- Deliver **cPDF** (certified PDF) and export using PDF/X‑1a:2001 presets.
+- Deliver **cPDF** (certified PDF) and export using PDF/X‑4 presets.
 Profile used by default: `/usr/share/color/icc/colord/FOGRA39L_coated.icc` (Coated FOGRA39 / ISO 12647-2:2004).
 
 ## Agent instructions
