@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
+import re
 import sys
 from pathlib import Path
 
 import pikepdf
 from pikepdf import PdfImage
+from PIL import Image
 from PIL import ImageCms
 
 
@@ -31,6 +33,65 @@ def convert_colorspace_entry(value):
     if is_rgb_colorspace(value):
         return pikepdf.Name("/DeviceCMYK"), 1
     return value, 0
+
+
+def format_pdf_num(v: float) -> str:
+    s = f"{v:.4f}"
+    s = s.rstrip("0").rstrip(".")
+    return s if s else "0"
+
+
+def is_near_black(r: float, g: float, b: float) -> bool:
+    # Treat very dark RGB as typography black and force rich black.
+    if max(r, g, b) <= 0.12:
+        return True
+    # Also catch near-neutral dark values.
+    return abs(r - g) <= 0.03 and abs(g - b) <= 0.03 and max(r, g, b) <= 0.25
+
+
+def rgb_to_cmyk_tuple(r: float, g: float, b: float, srgb_profile, out_profile):
+    if is_near_black(r, g, b):
+        return (0.5, 0.4, 0.4, 1.0), True
+    img = Image.new("RGB", (1, 1), (int(round(r * 255)), int(round(g * 255)), int(round(b * 255))))
+    cmyk = ImageCms.profileToProfile(img, srgb_profile, out_profile, outputMode="CMYK")
+    c, m, y, k = cmyk.getpixel((0, 0))
+    return (c / 255.0, m / 255.0, y / 255.0, k / 255.0), False
+
+
+def rewrite_rgb_operators(stream_bytes: bytes, srgb_profile, out_profile):
+    # Match: "<r> <g> <b> rg" or "... RG"
+    pattern = re.compile(
+        rb"(?P<prefix>(^|[\s\[\(]))"
+        rb"(?P<r>[+-]?(?:\d+(?:\.\d+)?|\.\d+))\s+"
+        rb"(?P<g>[+-]?(?:\d+(?:\.\d+)?|\.\d+))\s+"
+        rb"(?P<b>[+-]?(?:\d+(?:\.\d+)?|\.\d+))\s+"
+        rb"(?P<op>rg|RG)(?P<suffix>(?=$|[\s\]\)\<\>]))"
+    )
+    cache = {}
+    converted_ops = 0
+    deep_black_ops = 0
+
+    def repl(match):
+        nonlocal converted_ops, deep_black_ops
+        r = float(match.group("r"))
+        g = float(match.group("g"))
+        b = float(match.group("b"))
+        key = (round(r, 6), round(g, 6), round(b, 6))
+        if key not in cache:
+            cache[key] = rgb_to_cmyk_tuple(r, g, b, srgb_profile, out_profile)
+        (c, m, y, k), forced_black = cache[key]
+        if forced_black:
+            deep_black_ops += 1
+        converted_ops += 1
+        op = b"k" if match.group("op") == b"rg" else b"K"
+        repl_txt = (
+            f"{format_pdf_num(c)} {format_pdf_num(m)} {format_pdf_num(y)} {format_pdf_num(k)} ".encode("ascii")
+            + op
+        )
+        return match.group("prefix") + repl_txt + match.group("suffix")
+
+    new_bytes = pattern.sub(repl, stream_bytes)
+    return new_bytes, converted_ops, deep_black_ops
 
 
 def main():
@@ -174,6 +235,46 @@ def main():
             eprint(f"Converted RGB images: {converted}")
         if nonimage_converted:
             eprint(f"Converted RGB non-image colorspaces: {nonimage_converted}")
+
+        # Rewrite RGB paint operators in page content streams.
+        stream_rgb_ops = 0
+        stream_deep_black_ops = 0
+        content_stream_ids = set()
+        for obj in pdf.objects:
+            if not isinstance(obj, pikepdf.Dictionary):
+                continue
+            if obj.get("/Type") != pikepdf.Name("/Page"):
+                continue
+            contents = obj.get("/Contents")
+            if contents is None:
+                continue
+            if isinstance(contents, pikepdf.Array):
+                for c in contents:
+                    try:
+                        content_stream_ids.add(c.objgen)
+                    except Exception:
+                        continue
+            else:
+                try:
+                    content_stream_ids.add(contents.objgen)
+                except Exception:
+                    continue
+
+        for obj_id, gen in content_stream_ids:
+            try:
+                stream_obj = pdf.get_object((obj_id, gen))
+                raw = stream_obj.read_bytes()
+                rewritten, changed, deep_black = rewrite_rgb_operators(raw, srgb_profile, out_profile)
+                if changed > 0:
+                    stream_obj.write(rewritten)
+                    stream_rgb_ops += changed
+                    stream_deep_black_ops += deep_black
+            except Exception:
+                continue
+        if stream_rgb_ops:
+            eprint(f"Converted RGB content operators: {stream_rgb_ops}")
+        if stream_deep_black_ops:
+            eprint(f"Forced deep black operators: {stream_deep_black_ops}")
 
         pdf.save(output_pdf, min_version="1.6")
 
