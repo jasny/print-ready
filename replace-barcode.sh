@@ -48,6 +48,11 @@ fi
 barcode_type="${BARCODE_TYPE:-13}" # 13 = EAN-13 in zint
 deep_black_cmyk="${DEEP_BLACK_CMYK:-0 0 0 1}"
 paper_white_cmyk="${PAPER_WHITE_CMYK:-0 0 0 0}"
+show_text="${BARCODE_SHOW_TEXT:-1}"
+zint_args=()
+if [[ "$show_text" == "0" ]]; then
+  zint_args+=(--notext)
+fi
 out_name="$(basename "$src_img")"
 if [[ ! "$out_name" =~ ^obj-[0-9]+-[0-9]+\.png$ ]]; then
   echo "ERROR: expected filename like obj-<id>-<gen>.png, got: $out_name" >&2
@@ -65,7 +70,7 @@ zint \
   --data="$barcode_data" \
   --filetype=EPS \
   --output="$out_eps" \
-  --notext
+  "${zint_args[@]}"
 
 # Force CMYK color operators in generated EPS.
 tmp_eps="$(mktemp)"
