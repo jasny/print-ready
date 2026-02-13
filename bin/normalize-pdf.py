@@ -3,6 +3,7 @@ import re
 import sys
 from pathlib import Path
 import os
+import tempfile
 
 import pikepdf
 from pikepdf import PdfImage
@@ -110,7 +111,11 @@ def main():
     srgb_profile = ImageCms.createProfile("sRGB")
     forced_black = parse_cmyk_override(os.getenv("DARK_RGB_CMYK", "0 0 0 1"))
 
+    stream_rgb_ops = 0
+    stream_deep_black_ops = 0
+
     with pikepdf.open(input_pdf) as pdf:
+        objects = list(pdf.objects)
         icc_stream = pdf.make_stream(icc_bytes)
         icc_stream["/N"] = 4
 
@@ -129,7 +134,7 @@ def main():
         pdf.Root["/GTS_PDFXConformance"] = pikepdf.String(pdf_standard)
 
         converted = 0
-        for obj in pdf.objects:
+        for obj in objects:
             try:
                 if obj.get("/Subtype") != pikepdf.Name("/Image"):
                     continue
@@ -170,7 +175,7 @@ def main():
                 continue
 
         nonimage_converted = 0
-        for obj in pdf.objects:
+        for obj in objects:
             try:
                 if obj.get("/Subtype") == pikepdf.Name("/Image"):
                     continue
@@ -193,47 +198,48 @@ def main():
         if nonimage_converted:
             eprint(f"Converted RGB non-image colorspaces: {nonimage_converted}")
 
-        # Rewrite RGB paint operators in page content streams.
-        stream_rgb_ops = 0
-        stream_deep_black_ops = 0
-        content_stream_ids = set()
-        for obj in pdf.objects:
-            if not isinstance(obj, pikepdf.Dictionary):
-                continue
-            if obj.get("/Type") != pikepdf.Name("/Page"):
-                continue
-            contents = obj.get("/Contents")
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp_pdf = Path(tmp.name)
+        pdf.save(tmp_pdf, min_version="1.6")
+
+    # Second pass: rewrite RGB paint operators in non-image content streams
+    # (page contents, form xobjects, etc.).
+    with pikepdf.open(tmp_pdf) as pdf2:
+        seen = set()
+        for page in pdf2.pages:
+            contents = page.get("/Contents")
             if contents is None:
                 continue
             if isinstance(contents, pikepdf.Array):
-                for c in contents:
-                    try:
-                        content_stream_ids.add(c.objgen)
-                    except Exception:
-                        continue
+                content_refs = contents
             else:
+                content_refs = [contents]
+            for ref in content_refs:
                 try:
-                    content_stream_ids.add(contents.objgen)
+                    og = ref.objgen
+                    if og in seen:
+                        continue
+                    seen.add(og)
+                    stream_obj = ref
+                    raw = stream_obj.read_bytes()
+                    rewritten, changed, deep_black = rewrite_rgb_operators(raw, srgb_profile, out_profile, forced_black)
+                    if changed > 0:
+                        stream_obj.write(rewritten)
+                        stream_rgb_ops += changed
+                        stream_deep_black_ops += deep_black
                 except Exception:
                     continue
+        pdf2.save(output_pdf, min_version="1.6")
 
-        for obj_id, gen in content_stream_ids:
-            try:
-                stream_obj = pdf.get_object((obj_id, gen))
-                raw = stream_obj.read_bytes()
-                rewritten, changed, deep_black = rewrite_rgb_operators(raw, srgb_profile, out_profile, forced_black)
-                if changed > 0:
-                    stream_obj.write(rewritten)
-                    stream_rgb_ops += changed
-                    stream_deep_black_ops += deep_black
-            except Exception:
-                continue
-        if stream_rgb_ops:
-            eprint(f"Converted RGB content operators: {stream_rgb_ops}")
-        if stream_deep_black_ops:
-            eprint(f"Forced deep black operators: {stream_deep_black_ops}")
+    try:
+        tmp_pdf.unlink(missing_ok=True)
+    except Exception:
+        pass
 
-        pdf.save(output_pdf, min_version="1.6")
+    if stream_rgb_ops:
+        eprint(f"Converted RGB content operators: {stream_rgb_ops}")
+    if stream_deep_black_ops:
+        eprint(f"Forced deep black operators: {stream_deep_black_ops}")
 
     print(f"Wrote {output_pdf}")
 

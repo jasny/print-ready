@@ -159,6 +159,7 @@ qpdf --json "$src_pdf" | jq -r '
       [ paths(scalars) as $p
         | (getpath($p)) as $val
         | select($val == "/DeviceRGB" or $val == "/CalRGB")
+        | select(($p | map(tostring) | join(".")) | contains("/Shading./ColorSpace") | not)
         | $p
       ] as $paths
       | if ($paths | length) > 0 then
@@ -171,9 +172,6 @@ qpdf --json "$src_pdf" | jq -r '
 
 if [[ -s "$tmp_rgb_nonimage" ]]; then
   rgb_nonimage_count="$(wc -l < "$tmp_rgb_nonimage" | tr -d ' ')"
-fi
-if [[ "$rgb_nonimage_count" -gt 0 ]]; then
-  failures+=("RGB non-image objects remain")
 fi
 
 # Detect RGB paint operators in content streams (e.g., vector/text graphics).

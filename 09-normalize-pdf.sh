@@ -56,6 +56,7 @@ if [[ "$pdf_standard" == "PDF/X-4" ]]; then
   fi
   . .venv/bin/activate
   python ./bin/normalize-pdf.py "$src_pdf" "$output_pdf" "$color_profile" "$pdf_standard"
+  python ./bin/rewrite-page-rgb.py "$output_pdf" "$color_profile" "${DARK_RGB_CMYK:-0 0 0 1}"
 else
   # Basic normalization via Ghostscript. Produces a print-ready CMYK PDF.
   # Disable all downsampling to preserve upscaled resolution.
