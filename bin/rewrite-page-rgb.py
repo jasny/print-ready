@@ -59,6 +59,7 @@ def main():
 
     converted_ops = 0
     forced_ops = 0
+    converted_transparency_cs = 0
     with pikepdf.open(pdf_path, allow_overwriting_input=True) as pdf:
         seen = set()
         for page in pdf.pages:
@@ -108,12 +109,22 @@ def main():
                 if rewritten != raw:
                     ref.write(rewritten)
 
+        # Normalize transparency groups that still declare RGB.
+        for obj in pdf.objects:
+            if not isinstance(obj, pikepdf.Dictionary):
+                continue
+            if obj.get("/S") == pikepdf.Name("/Transparency") and obj.get("/CS") == pikepdf.Name("/DeviceRGB"):
+                obj["/CS"] = pikepdf.Name("/DeviceCMYK")
+                converted_transparency_cs += 1
+
         pdf.save(pdf_path, min_version="1.6")
 
     if converted_ops:
         print(f"Converted RGB content operators: {converted_ops}", file=sys.stderr)
     if forced_ops:
         print(f"Forced dark operators: {forced_ops}", file=sys.stderr)
+    if converted_transparency_cs:
+        print(f"Converted transparency groups RGB->CMYK: {converted_transparency_cs}", file=sys.stderr)
 
 
 if __name__ == "__main__":
