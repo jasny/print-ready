@@ -42,7 +42,7 @@ The core principles are:
 07-resize-smasks/
 08-replace-images/
 09-normalize-pdf/
-10-set-trim/
+10-output/
 11-preflight (stdout only)
 ```
 
@@ -280,7 +280,7 @@ For **PDF/X-4**, normalization embeds the required output intent (ICC profile) w
 09-normalize-pdf/boek.normalize.txt
 ```
 
-### 10-set-trim
+### 10-output
 
 **Purpose**
 Set print trim and bleed boxes. Uses a 3 mm trim inset by default.
@@ -288,8 +288,8 @@ Set print trim and bleed boxes. Uses a 3 mm trim inset by default.
 **Outputs**
 
 ```
-10-set-trim/boek.print.pdf
-10-set-trim/boek.trim.txt
+10-output/boek.print.pdf
+10-output/boek.trim.txt
 ```
 
 ### 11-preflight
@@ -314,7 +314,7 @@ Prints to stdout only.
 * Page sizes differ
 * Low-DPI issues remain
 
-The final deliverable remains in `10-set-trim/`.
+The final deliverable remains in `10-output/`.
 
 ## Configuration
 

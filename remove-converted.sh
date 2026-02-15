@@ -34,7 +34,7 @@ targets=(
   "07-resize-smasks/${base_name}"
   "08-replace-images/${base_name}."*
   "09-normalize-pdf/${base_name}."*
-  "10-set-trim/${base_name}."*
+  "10-output/${base_name}."*
 )
 
 shopt -s nullglob

@@ -20,7 +20,7 @@ fi
 base_name="$(basename "$input_pdf")"
 base_name="${base_name%.*}"
 
-src_pdf="10-set-trim/${base_name}.print.pdf"
+src_pdf="10-output/${base_name}.print.pdf"
 if [[ ! -f "$src_pdf" ]]; then
   src_pdf="09-normalize-pdf/${base_name}.print.pdf"
 fi
