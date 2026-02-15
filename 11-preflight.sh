@@ -20,13 +20,19 @@ fi
 base_name="$(basename "$input_pdf")"
 base_name="${base_name%.*}"
 
-src_pdf="09-normalize-pdf/${base_name}.print.pdf"
+src_pdf="10-set-trim/${base_name}.print.pdf"
+if [[ ! -f "$src_pdf" ]]; then
+  src_pdf="09-normalize-pdf/${base_name}.print.pdf"
+fi
 if [[ ! -f "$src_pdf" ]]; then
   src_pdf="$input_pdf"
 fi
 
 target_dpi="${TARGET_DPI:-300}"
 min_dpi="$(awk -v t="$target_dpi" 'BEGIN { printf "%.2f", t * 0.95 }')"
+trim_margin_mm="${TRIM_MARGIN_MM:-3}"
+trim_margin_pt="$(awk -v m="$trim_margin_mm" 'BEGIN { printf "%.6f", m*72.0/25.4 }')"
+trim_tolerance_pt="${TRIM_TOLERANCE_PT:-0.6}"
 pdf_standard="${PDF_STANDARD:-PDF/X-4}"
 default_profile="${DEFAULT_COLOR_PROFILE:-/usr/share/color/icc/colord/FOGRA39L_coated.icc}"
 color_profile="${COLOR_PROFILE:-$default_profile}"
@@ -50,10 +56,12 @@ if [[ -n "$orig_pages" && -n "$src_pages" && "$orig_pages" -ne "$src_pages" ]]; 
 fi
 
 page_size_mismatch=""
+trim_mismatch=""
 if [[ "${#failures[@]}" -eq 0 ]]; then
   for ((i=1; i<=orig_pages; i++)); do
     orig_size="$(pdfinfo -f "$i" -l "$i" -box "$input_pdf" | awk -v p="$i" '$1=="Page" && $2==p && $3=="size:" {print $4" x "$6" pts"; exit}')"
-    norm_size="$(pdfinfo -f "$i" -l "$i" -box "$src_pdf" | awk -v p="$i" '$1=="Page" && $2==p && $3=="size:" {print $4" x "$6" pts"; exit}')"
+    box_info="$(pdfinfo -f "$i" -l "$i" -box "$src_pdf")"
+    norm_size="$(echo "$box_info" | awk -v p="$i" '$1=="Page" && $2==p && $3=="size:" {print $4" x "$6" pts"; exit}')"
     if [[ -z "$orig_size" || -z "$norm_size" ]]; then
       page_size_mismatch="failed to read page size for page $i"
       break
@@ -62,15 +70,45 @@ if [[ "${#failures[@]}" -eq 0 ]]; then
       page_size_mismatch="page $i size differs (${orig_size} vs ${norm_size})"
       break
     fi
+
+    media_vals="$(echo "$box_info" | awk -v p="$i" '$1=="Page" && $2==p && $3=="MediaBox:" {print $4" "$5" "$6" "$7; exit}')"
+    trim_vals="$(echo "$box_info" | awk -v p="$i" '$1=="Page" && $2==p && $3=="TrimBox:" {print $4" "$5" "$6" "$7; exit}')"
+    if [[ -z "$media_vals" || -z "$trim_vals" ]]; then
+      trim_mismatch="failed to read MediaBox/TrimBox for page $i"
+      break
+    fi
+    read -r mx0 my0 mx1 my1 <<< "$media_vals"
+    read -r tx0 ty0 tx1 ty1 <<< "$trim_vals"
+    trim_check="$(awk -v mx0="$mx0" -v my0="$my0" -v mx1="$mx1" -v my1="$my1" \
+      -v tx0="$tx0" -v ty0="$ty0" -v tx1="$tx1" -v ty1="$ty1" \
+      -v inset="$trim_margin_pt" -v tol="$trim_tolerance_pt" '
+      function abs(x){return x<0?-x:x}
+      BEGIN{
+        ok=1
+        if (abs((tx0-mx0)-inset)>tol) ok=0
+        if (abs((ty0-my0)-inset)>tol) ok=0
+        if (abs((mx1-tx1)-inset)>tol) ok=0
+        if (abs((my1-ty1)-inset)>tol) ok=0
+        if (ok) print "OK"; else printf "BAD %.3f %.3f %.3f %.3f", (tx0-mx0), (ty0-my0), (mx1-tx1), (my1-ty1)
+      }')"
+    if [[ "$trim_check" != "OK" ]]; then
+      trim_mismatch="page $i trim inset mismatch (${trim_check#BAD }) expected ${trim_margin_mm}mm"
+      break
+    fi
   done
 fi
 if [[ -n "$page_size_mismatch" ]]; then
   failures+=("$page_size_mismatch")
 fi
+if [[ -n "$trim_mismatch" ]]; then
+  failures+=("$trim_mismatch")
+fi
 
 page_size_mm="unknown"
+trim_size_mm="unknown"
 if [[ -n "$orig_pages" && "$orig_pages" -gt 0 ]]; then
-  page_size_mm="$(pdfinfo -f 1 -l 1 -box "$src_pdf" | awk '
+  box_1="$(pdfinfo -f 1 -l 1 -box "$src_pdf")"
+  page_size_mm="$(echo "$box_1" | awk '
     $1=="Page" && $2==1 && $3=="size:" {
       w_pt=$4+0; h_pt=$6+0;
       w_mm=w_pt*25.4/72.0;
@@ -79,8 +117,20 @@ if [[ -n "$orig_pages" && "$orig_pages" -gt 0 ]]; then
       exit
     }
   ')"
+  trim_size_mm="$(echo "$box_1" | awk '
+    $1=="Page" && $2==1 && $3=="TrimBox:" {
+      w_pt=($6-$4)+0; h_pt=($7-$5)+0;
+      w_mm=w_pt*25.4/72.0;
+      h_mm=h_pt*25.4/72.0;
+      printf "%.2f x %.2f mm", w_mm, h_mm;
+      exit
+    }
+  ')"
   if [[ -z "$page_size_mm" ]]; then
     page_size_mm="unknown"
+  fi
+  if [[ -z "$trim_size_mm" ]]; then
+    trim_size_mm="unknown"
   fi
 fi
 
@@ -244,6 +294,8 @@ echo "Normalized: $src_pdf"
 echo "Pages (original): ${orig_pages:-unknown}"
 echo "Pages (normalized): ${src_pages:-unknown}"
 echo "Page size: $page_size_mm"
+echo "Trim size: $trim_size_mm"
+echo "Trim margin target (mm): $trim_margin_mm"
 echo "Target DPI: $target_dpi"
 echo "Min DPI (5% margin): $min_dpi"
 echo "PDF_STANDARD: $pdf_standard"

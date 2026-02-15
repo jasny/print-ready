@@ -42,7 +42,8 @@ The core principles are:
 07-resize-smasks/
 08-replace-images/
 09-normalize-pdf/
-10-preflight (stdout only)
+10-set-trim/
+11-preflight (stdout only)
 ```
 
 Each step reads only from earlier steps and writes only to its own folder.
@@ -53,7 +54,7 @@ Each step reads only from earlier steps and writes only to its own folder.
 ./convert.sh 00-input/boek.pdf
 ```
 
-Runs steps 1–10 in order and stops on the first failure. All script output is streamed to the terminal.
+Runs steps 1–11 in order and stops on the first failure. All script output is streamed to the terminal.
 
 ## Removing converted artifacts
 
@@ -279,7 +280,19 @@ For **PDF/X-4**, normalization embeds the required output intent (ICC profile) w
 09-normalize-pdf/boek.normalize.txt
 ```
 
-### 10-preflight
+### 10-set-trim
+
+**Purpose**
+Set print trim and bleed boxes. Uses a 3 mm trim inset by default.
+
+**Outputs**
+
+```
+10-set-trim/boek.print.pdf
+10-set-trim/boek.trim.txt
+```
+
+### 11-preflight
 
 **Purpose**
 Final verification.
@@ -301,7 +314,7 @@ Prints to stdout only.
 * Page sizes differ
 * Low-DPI issues remain
 
-The final deliverable remains in `09-normalize-pdf/`.
+The final deliverable remains in `10-set-trim/`.
 
 ## Configuration
 

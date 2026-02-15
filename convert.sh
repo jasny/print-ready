@@ -26,7 +26,8 @@ steps=(
   "./07-resize-smasks.sh"
   "./08-replace-images.sh"
   "./09-normalize-pdf.sh"
-  "./10-preflight.sh"
+  "./10-set-trim.sh"
+  "./11-preflight.sh"
 )
 
 for step in "${steps[@]}"; do
