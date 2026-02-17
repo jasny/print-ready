@@ -70,8 +70,13 @@ if [[ ! -f "$iso300_dst" ]]; then
   if ! curl -fL "https://eci.org/lib/exe/eci_offset_2009.zip" -o "$zip_path"; then
     curl -fL "https://www.eci.org/lib/exe/eci_offset_2009.zip" -o "$zip_path"
   fi
-  unzip -j "$zip_path" "eci_offset_2009/ISOcoated_v2_300_eci.icc" -d "$tmp_dir"
-  $SUDO install -m 0644 "${tmp_dir}/ISOcoated_v2_300_eci.icc" "$iso300_dst"
+  unzip -q "$zip_path" -d "$tmp_dir"
+  iso300_src="$(find "$tmp_dir" -type f -name 'ISOcoated_v2_300_eci.icc' -print -quit)"
+  if [[ -z "$iso300_src" ]]; then
+    echo "ERROR: ISOcoated_v2_300_eci.icc not found in downloaded archive" >&2
+    exit 1
+  fi
+  $SUDO install -m 0644 "$iso300_src" "$iso300_dst"
 fi
 
 BIN_PATH="$(find "${INSTALL_DIR}" -type f -name realesrgan-ncnn-vulkan -print -quit)"
