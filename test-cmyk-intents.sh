@@ -7,7 +7,7 @@ Usage: ./test-cmyk-intents.sh <image-file>
 
 Env vars:
   COLOR_PROFILE   Destination CMYK ICC profile.
-                  Default: profiles/PSO_Uncoated_ISO12647_eci.icc
+                  Default: /usr/share/color/icc/colord/FOGRA29L_uncoated.icc
   SOURCE_PROFILE  Source RGB ICC profile (optional auto-detect fallback).
 EOF
 }
@@ -23,7 +23,7 @@ if [[ ! -f "$input_image" ]]; then
   exit 1
 fi
 
-dest_profile="${COLOR_PROFILE:-profiles/PSO_Uncoated_ISO12647_eci.icc}"
+dest_profile="${COLOR_PROFILE:-/usr/share/color/icc/colord/FOGRA29L_uncoated.icc}"
 if [[ ! -f "$dest_profile" ]]; then
   echo "ERROR: destination ICC profile not found: $dest_profile" >&2
   exit 1
