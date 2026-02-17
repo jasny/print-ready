@@ -6,7 +6,6 @@ import os
 import tempfile
 
 import pikepdf
-from pikepdf import PdfImage
 from PIL import Image
 from PIL import ImageCms
 
@@ -150,11 +149,21 @@ def main():
                 if not is_rgb:
                     continue
 
-                img = PdfImage(obj).as_pil_image()
-                if img.mode not in ("RGB", "RGBA"):
-                    img = img.convert("RGB")
-                if img.mode == "RGBA":
-                    img = img.convert("RGB")
+                width = int(obj.get("/Width"))
+                height = int(obj.get("/Height"))
+                bpc = int(obj.get("/BitsPerComponent", 8))
+                if bpc != 8:
+                    # Keep non-8-bit images unchanged to avoid introducing artifacts.
+                    continue
+
+                decoded = obj.read_bytes()
+                expected_len = width * height * 3
+                if len(decoded) != expected_len:
+                    # Some streams decode through predictors/alternate layouts.
+                    # Skip instead of risking alpha/edge corruption from lossy fallbacks.
+                    continue
+
+                img = Image.frombytes("RGB", (width, height), decoded)
 
                 cmyk = ImageCms.profileToProfile(
                     img,
