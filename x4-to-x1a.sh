@@ -2,10 +2,10 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 <input-pdf> [output-pdf]" >&2
+  echo "Usage: $0 <input-pdf> <output-pdf>" >&2
 }
 
-if [[ $# -lt 1 || $# -gt 2 ]]; then
+if [[ $# -ne 2 ]]; then
   usage
   exit 2
 fi
@@ -16,10 +16,10 @@ if [[ ! -f "$in_pdf" ]]; then
   exit 1
 fi
 
-if [[ $# -eq 2 ]]; then
-  out_pdf="$2"
-else
-  out_pdf="${in_pdf%.pdf}.x1a.pdf"
+out_pdf="$2"
+if [[ "$in_pdf" == "$out_pdf" ]]; then
+  echo "ERROR: output must be a different file path (no in-place overwrite)." >&2
+  exit 1
 fi
 
 color_profile="${COLOR_PROFILE:-/usr/share/color/icc/colord/FOGRA39L_coated.icc}"
