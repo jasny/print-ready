@@ -5,6 +5,27 @@ usage() {
   echo "Usage: $0 <input-pdf>" >&2
 }
 
+default_output_condition_for_profile() {
+  local profile_path="$1"
+  local profile_file
+  profile_file="$(basename "$profile_path")"
+  local key="${profile_file,,}"
+  case "$key" in
+    fogra29l_uncoated.icc)
+      echo "Uncoated FOGRA29 (ISO 12647-2:2004)"
+      ;;
+    fogra39l_coated.icc)
+      echo "Coated FOGRA39 (ISO 12647-2:2004)"
+      ;;
+    isocoated_v2_300_eci.icc|iso_coated_v2_300_eci.icc)
+      echo "ISO Coated v2 300% (ECI)"
+      ;;
+    *)
+      echo "${profile_file%.*}"
+      ;;
+  esac
+}
+
 if [[ $# -ne 1 ]]; then
   usage
   exit 2
@@ -68,7 +89,7 @@ if [[ ! -x ./.venv/bin/python ]]; then
   exit 1
 fi
 . .venv/bin/activate
-output_condition="${OUTPUT_CONDITION_IDENTIFIER:-$(basename "${color_profile%.*}")}"
+output_condition="${OUTPUT_CONDITION_IDENTIFIER:-$(default_output_condition_for_profile "$color_profile")}"
 python ./bin/set-pdfx-metadata.py "$out_pdf" "$color_profile" "PDF/X-1a:2001" "$output_condition"
 
 if command -v qpdf >/dev/null 2>&1; then
