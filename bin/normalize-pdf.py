@@ -176,6 +176,10 @@ def main():
                 obj.BitsPerComponent = 8
                 obj.Width = cmyk.width
                 obj.Height = cmyk.height
+                if "/SMask" in obj:
+                    # Avoid interpolation mismatch between image and soft-mask, which
+                    # can show as thin halo/border lines in some PDF renderers.
+                    obj["/Interpolate"] = False
                 if "/Matte" in obj:
                     del obj["/Matte"]
                 obj.write(cmyk.tobytes())
