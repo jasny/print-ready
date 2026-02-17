@@ -3,7 +3,7 @@ set -euo pipefail
 export LC_ALL=C
 
 usage() {
-  echo "Usage: $0 <input-pdf>" >&2
+  echo "Usage: $0 <pdf-file>" >&2
 }
 
 if [[ $# -ne 1 ]]; then
@@ -11,21 +11,10 @@ if [[ $# -ne 1 ]]; then
   exit 2
 fi
 
-input_pdf="$1"
-if [[ ! -f "$input_pdf" ]]; then
-  echo "ERROR: input file not found: $input_pdf" >&2
+src_pdf="$1"
+if [[ ! -f "$src_pdf" ]]; then
+  echo "ERROR: input file not found: $src_pdf" >&2
   exit 1
-fi
-
-base_name="$(basename "$input_pdf")"
-base_name="${base_name%.*}"
-
-src_pdf="10-output/${base_name}.print.pdf"
-if [[ ! -f "$src_pdf" ]]; then
-  src_pdf="09-normalize-pdf/${base_name}.print.pdf"
-fi
-if [[ ! -f "$src_pdf" ]]; then
-  src_pdf="$input_pdf"
 fi
 
 target_dpi="${TARGET_DPI:-300}"
@@ -39,35 +28,22 @@ color_profile="${COLOR_PROFILE:-$default_profile}"
 
 failures=()
 
-orig_info="$(pdfinfo "$input_pdf")"
 src_info="$(pdfinfo "$src_pdf")"
 
-orig_pages="$(echo "$orig_info" | awk -F: '/^Pages:/ {gsub(/^[ \t]+/,"",$2); print $2}')"
 src_pages="$(echo "$src_info" | awk -F: '/^Pages:/ {gsub(/^[ \t]+/,"",$2); print $2}')"
 
-if [[ -z "$orig_pages" || "$orig_pages" -le 0 ]]; then
-  failures+=("original page count is invalid")
-fi
 if [[ -z "$src_pages" || "$src_pages" -le 0 ]]; then
-  failures+=("normalized page count is invalid")
-fi
-if [[ -n "$orig_pages" && -n "$src_pages" && "$orig_pages" -ne "$src_pages" ]]; then
-  failures+=("page count differs between original and normalized")
+  failures+=("page count is invalid")
 fi
 
 page_size_mismatch=""
 trim_mismatch=""
 if [[ "${#failures[@]}" -eq 0 ]]; then
-  for ((i=1; i<=orig_pages; i++)); do
-    orig_size="$(pdfinfo -f "$i" -l "$i" -box "$input_pdf" | awk -v p="$i" '$1=="Page" && $2==p && $3=="size:" {print $4" x "$6" pts"; exit}')"
+  for ((i=1; i<=src_pages; i++)); do
     box_info="$(pdfinfo -f "$i" -l "$i" -box "$src_pdf")"
     norm_size="$(echo "$box_info" | awk -v p="$i" '$1=="Page" && $2==p && $3=="size:" {print $4" x "$6" pts"; exit}')"
-    if [[ -z "$orig_size" || -z "$norm_size" ]]; then
+    if [[ -z "$norm_size" ]]; then
       page_size_mismatch="failed to read page size for page $i"
-      break
-    fi
-    if [[ "$orig_size" != "$norm_size" ]]; then
-      page_size_mismatch="page $i size differs (${orig_size} vs ${norm_size})"
       break
     fi
 
@@ -106,7 +82,7 @@ fi
 
 page_size_mm="unknown"
 trim_size_mm="unknown"
-if [[ -n "$orig_pages" && "$orig_pages" -gt 0 ]]; then
+if [[ -n "$src_pages" && "$src_pages" -gt 0 ]]; then
   box_1="$(pdfinfo -f 1 -l 1 -box "$src_pdf")"
   page_size_mm="$(echo "$box_1" | awk '
     $1=="Page" && $2==1 && $3=="size:" {
@@ -291,10 +267,8 @@ if [[ "$shading_mismatch_count" -gt 0 ]]; then
   failures+=("shading/function component mismatches remain")
 fi
 
-echo "Input: $input_pdf"
-echo "Normalized: $src_pdf"
-echo "Pages (original): ${orig_pages:-unknown}"
-echo "Pages (normalized): ${src_pages:-unknown}"
+echo "File: $src_pdf"
+echo "Pages: ${src_pages:-unknown}"
 echo "Page size: $page_size_mm"
 echo "Trim size: $trim_size_mm"
 echo "Trim margin target (mm): $trim_margin_mm"

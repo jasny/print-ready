@@ -9,7 +9,8 @@
 07-resize-smasks/**
 08-replace-images/**
 09-normalize-pdf/**
-10-output/**
+10-pdf-x4/**
+11-output/**
 
 .venv/
 weights/
@@ -24,4 +25,5 @@ weights/
 !07-resize-smasks/.gitkeep
 !08-replace-images/.gitkeep
 !09-normalize-pdf/.gitkeep
-!10-output/.gitkeep
+!10-pdf-x4/.gitkeep
+!11-output/.gitkeep

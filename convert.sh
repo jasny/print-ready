@@ -27,10 +27,20 @@ steps=(
   "./08-replace-images.sh"
   "./09-normalize-pdf.sh"
   "./10-set-trim.sh"
-  "./11-preflight.sh"
+  "./11-pdf-x1a.sh"
 )
 
 for step in "${steps[@]}"; do
   echo "==> Running ${step} ${input_pdf}"
   "${step}" "${input_pdf}"
 done
+
+base_name="$(basename "$input_pdf")"
+base_name="${base_name%.*}"
+x4_pdf="10-pdf-x4/${base_name}.print.pdf"
+x1a_pdf="11-output/${base_name}.print.x1a.pdf"
+
+echo "==> Running ./preflight.sh ${x4_pdf}"
+./preflight.sh "${x4_pdf}"
+echo "==> Running ./preflight.sh ${x1a_pdf}"
+./preflight.sh "${x1a_pdf}"

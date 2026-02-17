@@ -13,8 +13,9 @@ This repository defines a stepwise, folder-based PDF pipeline. Each step reads f
 - `07-resize-smasks/` resized soft masks matching image dimensions
 - `08-replace-images/` PDFs with replaced image objects
 - `09-normalize-pdf/` print-ready normalization outputs
-- `10-output/` PDFs with trim/bleed boxes set
-11-preflight runs and prints results to stdout. The final deliverable remains in `10-output/`.
+- `10-pdf-x4/` PDFs with trim/bleed boxes set (PDF/X-4)
+- `11-output/` PDF/X-1a outputs
+`preflight.sh` runs checks and prints results to stdout.
 
 ## Build, Test, and Development Commands
 No build or test commands are defined in this repo. The workflow is documented in `README.md`, and execution is expected to be script-driven by downstream tooling. If you add scripts later, document them here with examples such as:

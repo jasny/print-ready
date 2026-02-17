@@ -2,10 +2,10 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 <input-pdf> <output-pdf>" >&2
+  echo "Usage: $0 <input-pdf>" >&2
 }
 
-if [[ $# -ne 2 ]]; then
+if [[ $# -ne 1 ]]; then
   usage
   exit 2
 fi
@@ -16,11 +16,16 @@ if [[ ! -f "$in_pdf" ]]; then
   exit 1
 fi
 
-out_pdf="$2"
-if [[ "$in_pdf" == "$out_pdf" ]]; then
-  echo "ERROR: output must be a different file path (no in-place overwrite)." >&2
-  exit 1
+base_name="$(basename "$in_pdf")"
+base_name="${base_name%.*}"
+
+src_pdf="10-pdf-x4/${base_name}.print.pdf"
+if [[ ! -f "$src_pdf" ]]; then
+  src_pdf="$in_pdf"
 fi
+
+out_dir="11-output"
+out_pdf="${out_dir}/${base_name}.print.x1a.pdf"
 
 color_profile="${COLOR_PROFILE:-/usr/share/color/icc/colord/FOGRA39L_coated.icc}"
 if [[ ! -f "$color_profile" ]]; then
@@ -33,9 +38,9 @@ if ! command -v gs >/dev/null 2>&1; then
   exit 1
 fi
 
-mkdir -p "$(dirname "$out_pdf")"
+mkdir -p "$out_dir"
 
-echo "Input : $in_pdf"
+echo "Input : $src_pdf"
 echo "Output: $out_pdf"
 echo "Profile: $color_profile"
 
@@ -56,7 +61,7 @@ gs \
   -dDownsampleGrayImages=false \
   -dDownsampleMonoImages=false \
   -sOutputFile="$out_pdf" \
-  -f "$in_pdf"
+  -f "$src_pdf"
 
 if command -v qpdf >/dev/null 2>&1; then
   echo "qpdf check:"

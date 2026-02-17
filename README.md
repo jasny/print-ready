@@ -42,8 +42,9 @@ The core principles are:
 07-resize-smasks/
 08-replace-images/
 09-normalize-pdf/
-10-output/
-11-preflight (stdout only)
+10-pdf-x4/
+11-output/
+preflight.sh (stdout only)
 ```
 
 Each step reads only from earlier steps and writes only to its own folder.
@@ -54,7 +55,7 @@ Each step reads only from earlier steps and writes only to its own folder.
 ./convert.sh 00-input/boek.pdf
 ```
 
-Runs steps 1–11 in order and stops on the first failure. All script output is streamed to the terminal.
+Runs steps 1–11 in order and stops on the first failure. Then runs preflight on both the PDF/X-4 and PDF/X-1a outputs. All script output is streamed to the terminal.
 
 ## Removing converted artifacts
 
@@ -162,6 +163,8 @@ In other words:
 02-analyze-dpi
    ├─ low-DPI images found → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10 → 11
    └─ no low-DPI images    → 09 → 10 → 11
+
+After step 11, run `preflight.sh` on the output PDF you want to validate.
 ```
 
 This ensures:
@@ -280,7 +283,7 @@ For **PDF/X-4**, normalization embeds the required output intent (ICC profile) w
 09-normalize-pdf/boek.normalize.txt
 ```
 
-### 10-output
+### 10-pdf-x4
 
 **Purpose**
 Set print trim and bleed boxes. Uses a 3 mm trim inset by default.
@@ -288,11 +291,22 @@ Set print trim and bleed boxes. Uses a 3 mm trim inset by default.
 **Outputs**
 
 ```
-10-output/boek.print.pdf
-10-output/boek.trim.txt
+10-pdf-x4/boek.print.pdf
+10-pdf-x4/boek.trim.txt
 ```
 
-### 11-preflight
+### 11-output
+
+**Purpose**
+Convert PDF/X-4 output to PDF/X-1a.
+
+**Outputs**
+
+```
+11-output/boek.print.x1a.pdf
+```
+
+### preflight.sh
 
 **Purpose**
 Final verification.
@@ -314,7 +328,14 @@ Prints to stdout only.
 * Page sizes differ
 * Low-DPI issues remain
 
-The final deliverable remains in `10-output/`.
+Use preflight directly on a concrete file:
+
+```
+./preflight.sh 10-pdf-x4/boek.print.pdf
+./preflight.sh 11-output/boek.print.x1a.pdf
+```
+
+The default final deliverable is `10-pdf-x4/boek.print.pdf`, with optional PDF/X-1a output in `11-output/`.
 
 ## Configuration
 
