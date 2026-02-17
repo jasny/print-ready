@@ -32,10 +32,9 @@ output_pdf="${output_dir}/${base_name}.pdf"
 
 mkdir -p "$output_dir"
 
-pdf_standard="${PDF_STANDARD:-PDF/X-4}"
+pdf_standard="PDF/X-4"
 default_profile="${DEFAULT_COLOR_PROFILE:-/usr/share/color/icc/colord/FOGRA39L_coated.icc}"
 color_profile="${COLOR_PROFILE:-$default_profile}"
-normalize_dpi="${NORMALIZE_DPI:-${TARGET_DPI:-300}}"
 
 {
   echo "Input: $src_pdf"
@@ -44,51 +43,18 @@ normalize_dpi="${NORMALIZE_DPI:-${TARGET_DPI:-300}}"
   echo "Started: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } > "$report_file"
 
-if [[ "$pdf_standard" == "PDF/X-4" ]]; then
-  if [[ -z "$color_profile" || ! -f "$color_profile" ]]; then
-    echo "ERROR: COLOR_PROFILE not found: $color_profile" >&2
-    exit 1
-  fi
-  color_profile="$(readlink -f "$color_profile")"
-  if [[ ! -x ./.venv/bin/python ]]; then
-    echo "ERROR: venv missing. Run ./install.sh first." >&2
-    exit 1
-  fi
-  . .venv/bin/activate
-  python ./bin/normalize-pdf.py "$src_pdf" "$output_pdf" "$color_profile" "$pdf_standard"
-  python ./bin/rewrite-page-rgb.py "$output_pdf" "$color_profile" "${DARK_RGB_CMYK:-0 0 0 1}"
-else
-  # Basic normalization via Ghostscript. Produces a print-ready CMYK PDF.
-  # Disable all downsampling to preserve upscaled resolution.
-  gs_common=(
-    -dBATCH -dNOPAUSE -dSAFER
-    -sDEVICE=pdfwrite
-    -sOutputFile="$output_pdf"
-    -dColorImageResolution="$normalize_dpi"
-    -dGrayImageResolution="$normalize_dpi"
-    -dMonoImageResolution="$normalize_dpi"
-    -r"$normalize_dpi"
-    -dPDFX
-    -dCompatibilityLevel=1.3
-    -sProcessColorModel=DeviceCMYK
-    -sColorConversionStrategy=CMYK
-    -sColorConversionStrategyForImages=CMYK
-  )
-  gs_distiller='<< /DownsampleColorImages false /DownsampleGrayImages false /DownsampleMonoImages false >> setdistillerparams'
-
-  if [[ -n "$color_profile" && -f "$color_profile" ]]; then
-    color_profile="$(readlink -f "$color_profile")"
-    gs "${gs_common[@]}" \
-      -dOverrideICC \
-      -sOutputICCProfile="$color_profile" \
-      -c "$gs_distiller" \
-      -f "$src_pdf"
-  else
-    gs "${gs_common[@]}" \
-      -c "$gs_distiller" \
-      -f "$src_pdf"
-  fi
+if [[ -z "$color_profile" || ! -f "$color_profile" ]]; then
+  echo "ERROR: COLOR_PROFILE not found: $color_profile" >&2
+  exit 1
 fi
+color_profile="$(readlink -f "$color_profile")"
+if [[ ! -x ./.venv/bin/python ]]; then
+  echo "ERROR: venv missing. Run ./install.sh first." >&2
+  exit 1
+fi
+. .venv/bin/activate
+python ./bin/normalize-pdf.py "$src_pdf" "$output_pdf" "$color_profile" "$pdf_standard"
+python ./bin/rewrite-page-rgb.py "$output_pdf" "$color_profile" "${DARK_RGB_CMYK:-0 0 0 1}"
 
 echo "Wrote: $output_pdf" >> "$report_file"
 

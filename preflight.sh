@@ -22,7 +22,6 @@ min_dpi="$(awk -v t="$target_dpi" 'BEGIN { printf "%.2f", t * 0.95 }')"
 trim_margin_mm="${TRIM_MARGIN_MM:-3}"
 trim_margin_pt="$(awk -v m="$trim_margin_mm" 'BEGIN { printf "%.6f", m*72.0/25.4 }')"
 trim_tolerance_pt="${TRIM_TOLERANCE_PT:-0.6}"
-pdf_standard_target="${PDF_STANDARD:-PDF/X-4}"
 default_profile="${DEFAULT_COLOR_PROFILE:-/usr/share/color/icc/colord/FOGRA39L_coated.icc}"
 color_profile="${COLOR_PROFILE:-$default_profile}"
 
@@ -287,6 +286,9 @@ echo "Page size (mm): $page_size_mm"
 echo "Trim size (mm): $trim_size_mm"
 echo "PDF version: $standard"
 pdf_standard_detected="$(qpdf --json "$src_pdf" 2>/dev/null | jq -r '.qpdf[1]["obj:1 0 R"].value["/GTS_PDFXVersion"] // "unknown"' | sed 's/^u://')"
+if [[ "$pdf_standard_detected" == "unknown" ]]; then
+  failures+=("PDF/X standard is missing")
+fi
 echo "PDF standard: $pdf_standard_detected"
 echo "Color profile: $profile_label"
 echo "RGB images: $rgb_count"

@@ -63,6 +63,13 @@ gs \
   -sOutputFile="$out_pdf" \
   -f "$src_pdf"
 
+if [[ ! -x ./.venv/bin/python ]]; then
+  echo "ERROR: venv missing. Run ./00-install.sh first." >&2
+  exit 1
+fi
+. .venv/bin/activate
+python ./bin/set-pdfx-metadata.py "$out_pdf" "$color_profile" "PDF/X-1a:2001"
+
 if command -v qpdf >/dev/null 2>&1; then
   echo "qpdf check:"
   qpdf --check "$out_pdf"
