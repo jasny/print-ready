@@ -3,7 +3,7 @@
 This project defines a deterministic, folder-based workflow to convert a PDF exported from PowerPoint into a print-ready PDF for **inside pages only**. Covers are explicitly out of scope.
 
 The workflow is designed for Linux, fully scriptable, and suitable for execution by an AI agent.
-It is written specifically for Ubuntu LTS; the `00-install.sh` installer relies on APT and will not work on other systems.
+It is written specifically for Ubuntu LTS; the `install.sh` installer relies on APT and will not work on other systems.
 
 The core principles are:
 
