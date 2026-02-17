@@ -111,7 +111,9 @@ if [[ -n "$src_pages" && "$src_pages" -gt 0 ]]; then
 fi
 
 qpdf_check_output=""
+qpdf_check_status="OK"
 if ! qpdf_check_output="$(qpdf --check "$src_pdf" 2>&1)"; then
+  qpdf_check_status="FAIL"
   failures+=("qpdf check failed")
 fi
 
@@ -269,8 +271,15 @@ fi
 
 standard="$(pdfinfo "$src_pdf" 2>/dev/null | awk -F: '/^PDF version:/ {gsub(/^[ \t]+/,"",$2); print $2; exit}')"
 [[ -z "$standard" ]] && standard="unknown"
-profile_label="${color_profile:-none}"
-[[ -n "${color_profile:-}" && -f "${color_profile}" ]] && profile_label="$(basename "$color_profile")"
+profile_label="$(qpdf --json "$src_pdf" 2>/dev/null | jq -r '
+  .qpdf[1]["obj:1 0 R"].value["/OutputIntents"][0] as $oi_ref
+  | if $oi_ref == null then "none"
+    else
+      (.qpdf[1]["obj:\($oi_ref)"].value // {}) as $oi
+      | ($oi["/Info"] // $oi["/OutputConditionIdentifier"] // "unknown")
+    end
+' | sed 's/^u://')"
+[[ -z "$profile_label" ]] && profile_label="unknown"
 
 echo "File: $src_pdf"
 echo "Pages: ${src_pages:-unknown}"
@@ -278,9 +287,14 @@ echo "Page size (mm): $page_size_mm"
 echo "Trim size (mm): $trim_size_mm"
 echo "PDF version: $standard"
 pdf_standard_detected="$(qpdf --json "$src_pdf" 2>/dev/null | jq -r '.qpdf[1]["obj:1 0 R"].value["/GTS_PDFXVersion"] // "unknown"' | sed 's/^u://')"
-echo "PDF standard detected: $pdf_standard_detected"
-echo "PDF standard target: $pdf_standard_target"
+echo "PDF standard: $pdf_standard_detected"
 echo "Color profile: $profile_label"
+echo "RGB images: $rgb_count"
+echo "RGB non-image objects: $rgb_nonimage_count"
+echo "RGB content operators (rg/RG): $rgb_ops_count"
+echo "Shading/function mismatches: $shading_mismatch_count"
+echo "Low-DPI images: $low_count"
+echo "qpdf check: $qpdf_check_status"
 if [[ "${#failures[@]}" -eq 0 ]]; then
   echo "Result: OK"
 else
