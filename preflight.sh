@@ -268,9 +268,31 @@ if [[ "$shading_mismatch_count" -gt 0 ]]; then
 fi
 
 if [[ "${#failures[@]}" -eq 0 ]]; then
-  echo "OK"
+  standard="$(pdfinfo "$src_pdf" 2>/dev/null | awk -F: '/^PDF version:/ {gsub(/^[ \t]+/,"",$2); print $2; exit}')"
+  [[ -z "$standard" ]] && standard="unknown"
+  profile_label="${color_profile:-none}"
+  [[ -n "${color_profile:-}" && -f "${color_profile}" ]] && profile_label="$(basename "$color_profile")"
+  echo "File: $src_pdf"
+  echo "Pages: ${src_pages:-unknown}"
+  echo "Page size (mm): $page_size_mm"
+  echo "Trim size (mm): $trim_size_mm"
+  echo "PDF version: $standard"
+  echo "PDF standard target: $pdf_standard"
+  echo "Color profile: $profile_label"
+  echo "Result: OK"
 else
-  printf 'FAIL: %s\n' "$(IFS='; '; echo "${failures[*]}")"
+  standard="$(pdfinfo "$src_pdf" 2>/dev/null | awk -F: '/^PDF version:/ {gsub(/^[ \t]+/,"",$2); print $2; exit}')"
+  [[ -z "$standard" ]] && standard="unknown"
+  profile_label="${color_profile:-none}"
+  [[ -n "${color_profile:-}" && -f "${color_profile}" ]] && profile_label="$(basename "$color_profile")"
+  echo "File: $src_pdf"
+  echo "Pages: ${src_pages:-unknown}"
+  echo "Page size (mm): $page_size_mm"
+  echo "Trim size (mm): $trim_size_mm"
+  echo "PDF version: $standard"
+  echo "PDF standard target: $pdf_standard"
+  echo "Color profile: $profile_label"
+  printf 'Result: FAIL (%s)\n' "$(IFS='; '; echo "${failures[*]}")"
 fi
 
 rm -f "$tmp_low" "$tmp_rgb" "$tmp_rgb_nonimage" "$tmp_rgb_ops" "$tmp_shading_mismatch" "$tmp_qdf" "${tmp_low}.count" "${tmp_rgb}.count"
