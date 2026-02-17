@@ -258,7 +258,7 @@ Replacement images are converted to **CMYK** to avoid color conversion during no
 **Outputs**
 
 ```
-08-replace-images/boek.replaced.pdf
+08-replace-images/boek.pdf
 08-replace-images/boek.replace.txt
 ```
 
@@ -279,7 +279,7 @@ For **PDF/X-4**, normalization embeds the required output intent (ICC profile) w
 **Outputs**
 
 ```
-09-normalize-pdf/boek.print.pdf
+09-normalize-pdf/boek.pdf
 09-normalize-pdf/boek.normalize.txt
 ```
 
@@ -291,7 +291,7 @@ Set print trim and bleed boxes. Uses a 3 mm trim inset by default.
 **Outputs**
 
 ```
-10-pdf-x4/boek.print.pdf
+10-pdf-x4/boek.pdf
 10-pdf-x4/boek.trim.txt
 ```
 
@@ -303,7 +303,7 @@ Convert PDF/X-4 output to PDF/X-1a.
 **Outputs**
 
 ```
-11-output/boek.print.x1a.pdf
+11-output/boek.pdf
 ```
 
 ### preflight.sh
@@ -331,11 +331,11 @@ Prints to stdout only.
 Use preflight directly on a concrete file:
 
 ```
-./preflight.sh 10-pdf-x4/boek.print.pdf
-./preflight.sh 11-output/boek.print.x1a.pdf
+./preflight.sh 10-pdf-x4/boek.pdf
+./preflight.sh 11-output/boek.pdf
 ```
 
-The default final deliverable is `10-pdf-x4/boek.print.pdf`, with optional PDF/X-1a output in `11-output/`.
+The default final deliverable is `10-pdf-x4/boek.pdf`, with optional PDF/X-1a output in `11-output/`.
 
 ## Configuration
 

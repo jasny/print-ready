@@ -69,7 +69,7 @@ def main():
     output_dir = Path("08-replace-images")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    out_pdf = output_dir / f"{base_name}.replaced.pdf"
+    out_pdf = output_dir / f"{base_name}.pdf"
     report_file = output_dir / f"{base_name}.replace.txt"
 
     if not up_dir.is_dir() and not resize_dir.is_dir():

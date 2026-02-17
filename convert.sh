@@ -37,8 +37,8 @@ done
 
 base_name="$(basename "$input_pdf")"
 base_name="${base_name%.*}"
-x4_pdf="10-pdf-x4/${base_name}.print.pdf"
-x1a_pdf="11-output/${base_name}.print.x1a.pdf"
+x4_pdf="10-pdf-x4/${base_name}.pdf"
+x1a_pdf="11-output/${base_name}.pdf"
 
 echo "==> Running ./preflight.sh ${x4_pdf}"
 ./preflight.sh "${x4_pdf}"

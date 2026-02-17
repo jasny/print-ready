@@ -20,7 +20,7 @@ fi
 base_name="$(basename "$input_pdf")"
 base_name="${base_name%.*}"
 
-src_pdf="08-replace-images/${base_name}.replaced.pdf"
+src_pdf="08-replace-images/${base_name}.pdf"
 if [[ ! -f "$src_pdf" ]]; then
   # allow direct input if a different file is provided
   src_pdf="$input_pdf"
@@ -28,7 +28,7 @@ fi
 
 output_dir="09-normalize-pdf"
 report_file="${output_dir}/${base_name}.normalize.txt"
-output_pdf="${output_dir}/${base_name}.print.pdf"
+output_pdf="${output_dir}/${base_name}.pdf"
 
 mkdir -p "$output_dir"
 

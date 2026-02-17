@@ -19,13 +19,13 @@ fi
 base_name="$(basename "$in_pdf")"
 base_name="${base_name%.*}"
 
-src_pdf="10-pdf-x4/${base_name}.print.pdf"
+src_pdf="10-pdf-x4/${base_name}.pdf"
 if [[ ! -f "$src_pdf" ]]; then
   src_pdf="$in_pdf"
 fi
 
 out_dir="11-output"
-out_pdf="${out_dir}/${base_name}.print.x1a.pdf"
+out_pdf="${out_dir}/${base_name}.pdf"
 
 color_profile="${COLOR_PROFILE:-/usr/share/color/icc/colord/FOGRA39L_coated.icc}"
 if [[ ! -f "$color_profile" ]]; then

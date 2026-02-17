@@ -20,13 +20,13 @@ fi
 base_name="$(basename "$input_pdf")"
 base_name="${base_name%.*}"
 
-src_pdf="09-normalize-pdf/${base_name}.print.pdf"
+src_pdf="09-normalize-pdf/${base_name}.pdf"
 if [[ ! -f "$src_pdf" ]]; then
   src_pdf="$input_pdf"
 fi
 
 output_dir="10-pdf-x4"
-output_pdf="${output_dir}/${base_name}.print.pdf"
+output_pdf="${output_dir}/${base_name}.pdf"
 report_file="${output_dir}/${base_name}.trim.txt"
 trim_margin_mm="${TRIM_MARGIN_MM:-3}"
 
