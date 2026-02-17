@@ -63,6 +63,16 @@ if [[ ! -f weights/RealESRGAN_x2plus.pth ]]; then
   curl -L "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth" -o weights/RealESRGAN_x2plus.pth
 fi
 
+mkdir -p profiles
+if [[ ! -f profiles/ISOcoated_v2_300_eci.icc ]]; then
+  tmp_dir="$(mktemp -d)"
+  zip_path="${tmp_dir}/eci_offset_2009.zip"
+  if ! curl -fL "https://eci.org/lib/exe/eci_offset_2009.zip" -o "$zip_path"; then
+    curl -fL "https://www.eci.org/lib/exe/eci_offset_2009.zip" -o "$zip_path"
+  fi
+  unzip -j "$zip_path" "eci_offset_2009/ISOcoated_v2_300_eci.icc" -d profiles
+fi
+
 BIN_PATH="$(find "${INSTALL_DIR}" -type f -name realesrgan-ncnn-vulkan -print -quit)"
 if [[ -n "${BIN_PATH}" ]]; then
   $SUDO chmod +x "${BIN_PATH}"
