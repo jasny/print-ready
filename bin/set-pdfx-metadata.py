@@ -6,17 +6,21 @@ import pikepdf
 
 
 def usage():
-    print("Usage: set-pdfx-metadata.py <pdf> <icc-profile> <pdfx-version>", file=sys.stderr)
+    print(
+        "Usage: set-pdfx-metadata.py <pdf> <icc-profile> <pdfx-version> [output-condition]",
+        file=sys.stderr,
+    )
 
 
 def main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5):
         usage()
         return 2
 
     pdf_path = Path(sys.argv[1])
     icc_path = Path(sys.argv[2])
     pdfx_version = sys.argv[3]
+    output_condition = sys.argv[4] if len(sys.argv) == 5 else icc_path.stem
 
     if not pdf_path.is_file():
         print(f"ERROR: file not found: {pdf_path}", file=sys.stderr)
@@ -34,8 +38,8 @@ def main():
             {
                 "/Type": pikepdf.Name("/OutputIntent"),
                 "/S": pikepdf.Name("/GTS_PDFX"),
-                "/OutputConditionIdentifier": "Coated FOGRA39 (ISO 12647-2:2004)",
-                "/Info": "Coated FOGRA39 (ISO 12647-2:2004)",
+                "/OutputConditionIdentifier": output_condition,
+                "/Info": output_condition,
                 "/DestOutputProfile": icc_stream,
             }
         )

@@ -68,7 +68,8 @@ if [[ ! -x ./.venv/bin/python ]]; then
   exit 1
 fi
 . .venv/bin/activate
-python ./bin/set-pdfx-metadata.py "$out_pdf" "$color_profile" "PDF/X-1a:2001"
+output_condition="${OUTPUT_CONDITION_IDENTIFIER:-$(basename "${color_profile%.*}")}"
+python ./bin/set-pdfx-metadata.py "$out_pdf" "$color_profile" "PDF/X-1a:2001" "$output_condition"
 
 if command -v qpdf >/dev/null 2>&1; then
   echo "qpdf check:"
