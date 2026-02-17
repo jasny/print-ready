@@ -267,57 +267,15 @@ if [[ "$shading_mismatch_count" -gt 0 ]]; then
   failures+=("shading/function component mismatches remain")
 fi
 
-echo "File: $src_pdf"
-echo "Pages: ${src_pages:-unknown}"
-echo "Page size: $page_size_mm"
-echo "Trim size: $trim_size_mm"
-echo "Trim margin target (mm): $trim_margin_mm"
-echo "Target DPI: $target_dpi"
-echo "Min DPI (5% margin): $min_dpi"
-echo "PDF_STANDARD: $pdf_standard"
-echo "COLOR_PROFILE: ${color_profile:-none}"
-echo "RGB images: $rgb_count"
-echo "RGB non-image objects: $rgb_nonimage_count"
-echo "RGB content operators (rg/RG): $rgb_ops_count"
-echo "Shading/function mismatches: $shading_mismatch_count"
-echo "Low-DPI images: $low_count"
-if [[ -n "$qpdf_check_output" ]]; then
-  echo "qpdf check:"
-  echo "$qpdf_check_output" | sed 's/^/  /'
-fi
-if [[ "$rgb_count" -gt 0 ]]; then
-  echo "RGB objects:"
-  awk -F, '{printf "  RGB: %s (object %s,%s) color=%s enc=%s type=%s x_ppi=%.2f y_ppi=%.2f\n", $1, $2, $3, $4, $5, $6, $7, $8}' "$tmp_rgb"
-fi
-if [[ "$low_count" -gt 0 ]]; then
-  echo "Low-DPI objects:"
-  awk -F, '{printf "  LOW_DPI: %s (object %s,%s) color=%s enc=%s type=%s x_ppi=%.2f y_ppi=%.2f min_ppi=%.2f size=%sx%s\n", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11}' "$tmp_low"
-fi
-if [[ "$rgb_nonimage_count" -gt 0 ]]; then
-  echo "RGB non-image objects (qpdf object|json paths):"
-  sed 's/^/  /' "$tmp_rgb_nonimage"
-fi
-if [[ "$rgb_ops_count" -gt 0 ]]; then
-  echo "RGB content operator matches (first 20):"
-  sed -n '1,20p' "$tmp_rgb_ops" | sed 's/^/  /'
-fi
-if [[ "$shading_mismatch_count" -gt 0 ]]; then
-  echo "Shading/function mismatches:"
-  sed 's/^/  /' "$tmp_shading_mismatch"
-fi
 if [[ "${#failures[@]}" -eq 0 ]]; then
-  echo "Status: OK"
+  echo "OK"
 else
-  echo "Status: FAIL"
-  for reason in "${failures[@]}"; do
-    echo "Reason: $reason"
-  done
+  printf 'FAIL: %s\n' "$(IFS='; '; echo "${failures[*]}")"
 fi
 
 rm -f "$tmp_low" "$tmp_rgb" "$tmp_rgb_nonimage" "$tmp_rgb_ops" "$tmp_shading_mismatch" "$tmp_qdf" "${tmp_low}.count" "${tmp_rgb}.count"
 
 if [[ "${#failures[@]}" -ne 0 ]]; then
-  echo "Preflight failed." >&2
   exit 1
 fi
 
