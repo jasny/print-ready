@@ -26,6 +26,8 @@ def build_form_from_eps(dest_pdf: pikepdf.Pdf, eps_path: Path):
                 "-dSAFER",
                 "-dBATCH",
                 "-dNOPAUSE",
+                # Convert text to outlines so barcode EPS fonts cannot be missing.
+                "-dNoOutputFonts",
                 "-sDEVICE=pdfwrite",
                 "-dEPSCrop",
                 f"-sOutputFile={eps_pdf}",
