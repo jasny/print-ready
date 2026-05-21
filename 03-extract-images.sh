@@ -33,47 +33,65 @@ mkdir -p "$output_dir"
 low_keys="$(mktemp)"
 awk -F, 'NR==1 {next} {print $3"-"$4}' "$low_csv" | sort -u > "$low_keys"
 
-pdfimages -list "$input_pdf" | awk '
-  NR<=2 {next}
-  {
-    page=$1
-    num=$2
-    type=$3
-    width=$4
-    height=$5
-    color=$6
-    enc=$9
-    object=$11
-    id=$12
-    if (object == "" || id == "") next
-    printf "%d,%d,%s,%s,%s,%s,%s,%s,%s\n", page, num, object, id, width, height, color, enc, type
-  }
-' | sort -t, -k2,2n > /tmp/pdfimages.list
+low_pages="$(mktemp)"
+awk -F, 'NR==1 {next} {print $1}' "$low_csv" | sort -n -u > "$low_pages"
 
-all_tmpdir="$(mktemp -d)"
-pdfimages -png "$input_pdf" "$all_tmpdir/img" >/dev/null
+page_list_tmp="$(mktemp)"
+page_tmpdir=""
+cleanup() {
+  rm -f "$low_keys" "$low_pages" "$page_list_tmp"
+  if [[ -n "$page_tmpdir" && -d "$page_tmpdir" ]]; then
+    rm -rf "$page_tmpdir"
+  fi
+}
+trap cleanup EXIT
 
-while IFS=, read -r page num object id width height color enc type; do
-  key="${object}-${id}"
-  if [[ "$type" == "smask" ]]; then
-    continue
-  fi
-  if ! rg -q "^${key}$" "$low_keys"; then
-    continue
-  fi
-  file_num=$(printf '%03d' "$num")
-  src_file="${all_tmpdir}/img-${file_num}.png"
-  if [[ ! -f "$src_file" ]]; then
-    echo "ERROR: missing extracted file for image num $num (page $page)" >&2
-    exit 1
-  fi
-  out_file="${output_dir}/obj-${object}-${id}.png"
-  if [[ -s "$out_file" ]]; then
-    continue
-  fi
-  cp "$src_file" "$out_file"
-  printf 'Wrote %s\n' "$out_file"
-done < /tmp/pdfimages.list
+while IFS= read -r page; do
+  [[ -n "$page" ]] || continue
 
-rm -rf "$all_tmpdir"
-rm -f "$low_keys" /tmp/pdfimages.list
+  : > "$page_list_tmp"
+  pdfimages -f "$page" -l "$page" -list "$input_pdf" | awk '
+    NR<=2 {next}
+    {
+      page=$1
+      num=$2
+      type=$3
+      width=$4
+      height=$5
+      color=$6
+      enc=$9
+      object=$11
+      id=$12
+      if (object == "" || id == "") next
+      printf "%d,%d,%s,%s,%s,%s,%s,%s,%s\n", page, num, object, id, width, height, color, enc, type
+    }
+  ' > "$page_list_tmp"
+
+  page_tmpdir="$(mktemp -d)"
+  pdfimages -f "$page" -l "$page" -png "$input_pdf" "$page_tmpdir/img" >/dev/null
+
+  while IFS=, read -r listed_page num object id width height color enc type; do
+    key="${object}-${id}"
+    if [[ "$type" == "smask" ]]; then
+      continue
+    fi
+    if ! rg -q "^${key}$" "$low_keys"; then
+      continue
+    fi
+    file_num=$(printf '%03d' "$num")
+    src_file="${page_tmpdir}/img-${file_num}.png"
+    if [[ ! -f "$src_file" ]]; then
+      echo "ERROR: missing extracted file for image num $num (page $listed_page)" >&2
+      exit 1
+    fi
+    out_file="${output_dir}/obj-${object}-${id}.png"
+    if [[ -s "$out_file" ]]; then
+      continue
+    fi
+    cp "$src_file" "$out_file"
+    printf 'Wrote %s\n' "$out_file"
+  done < "$page_list_tmp"
+
+  rm -rf "$page_tmpdir"
+  page_tmpdir=""
+done < "$low_pages"
