@@ -25,8 +25,13 @@ mkdir -p "$output_dir"
 
 tmp_report="$(mktemp)"
 fail_reason=""
+poppler_suspects_warning="Syntax Error: Suspects object is wrong type (boolean)"
 
-pdfinfo_out="$(pdfinfo "$input_pdf")"
+pdfinfo_filtered() {
+  pdfinfo "$@" 2> >(grep -Fv "$poppler_suspects_warning" >&2)
+}
+
+pdfinfo_out="$(pdfinfo_filtered "$input_pdf")"
 
 pages="$(echo "$pdfinfo_out" | awk -F: '/^Pages:/ {gsub(/^[ \t]+/,"",$2); print $2}')"
 if [[ -z "$pages" || "$pages" -le 0 ]]; then
@@ -41,14 +46,11 @@ fi
 # Page size consistency check (per-page)
 size_list=()
 if [[ -z "$fail_reason" ]]; then
-  for ((i=1; i<=pages; i++)); do
-    size_line="$(pdfinfo -f "$i" -l "$i" -box "$input_pdf" | awk -v p="$i" '$1=="Page" && $2==p && $3=="size:" {print $4" x "$6" pts"; exit}')"
-    if [[ -z "$size_line" ]]; then
-      fail_reason="failed to read page size for page $i"
-      break
-    fi
-    size_list+=("$size_line")
-  done
+  box_info="$(pdfinfo_filtered -f 1 -l "$pages" -box "$input_pdf")"
+  mapfile -t size_list < <(awk '$1=="Page" && $3=="size:" {print $4" x "$6" pts"}' <<< "$box_info")
+  if [[ "${#size_list[@]}" -ne "$pages" ]]; then
+    fail_reason="failed to read page size for all pages"
+  fi
 fi
 
 unique_sizes="$(printf '%s\n' "${size_list[@]}" | sort -u)"

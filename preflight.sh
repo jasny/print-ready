@@ -26,8 +26,13 @@ default_profile="${DEFAULT_COLOR_PROFILE:-/usr/share/color/icc/colord/FOGRA39L_c
 color_profile="${COLOR_PROFILE:-$default_profile}"
 
 failures=()
+poppler_suspects_warning="Syntax Error: Suspects object is wrong type (boolean)"
 
-src_info="$(pdfinfo "$src_pdf")"
+pdfinfo_filtered() {
+  pdfinfo "$@" 2> >(grep -Fv "$poppler_suspects_warning" >&2)
+}
+
+src_info="$(pdfinfo_filtered "$src_pdf")"
 
 src_pages="$(echo "$src_info" | awk -F: '/^Pages:/ {gsub(/^[ \t]+/,"",$2); print $2}')"
 
@@ -37,17 +42,18 @@ fi
 
 page_size_mismatch=""
 trim_mismatch=""
+all_box_info=""
 if [[ "${#failures[@]}" -eq 0 ]]; then
+  all_box_info="$(pdfinfo_filtered -f 1 -l "$src_pages" -box "$src_pdf")"
   for ((i=1; i<=src_pages; i++)); do
-    box_info="$(pdfinfo -f "$i" -l "$i" -box "$src_pdf")"
-    norm_size="$(echo "$box_info" | awk -v p="$i" '$1=="Page" && $2==p && $3=="size:" {print $4" x "$6" pts"; exit}')"
+    norm_size="$(awk -v p="$i" '$1=="Page" && $2==p && $3=="size:" {print $4" x "$6" pts"; exit}' <<< "$all_box_info")"
     if [[ -z "$norm_size" ]]; then
       page_size_mismatch="failed to read page size for page $i"
       break
     fi
 
-    media_vals="$(echo "$box_info" | awk -v p="$i" '$1=="Page" && $2==p && $3=="MediaBox:" {print $4" "$5" "$6" "$7; exit}')"
-    trim_vals="$(echo "$box_info" | awk -v p="$i" '$1=="Page" && $2==p && $3=="TrimBox:" {print $4" "$5" "$6" "$7; exit}')"
+    media_vals="$(awk -v p="$i" '$1=="Page" && $2==p && $3=="MediaBox:" {print $4" "$5" "$6" "$7; exit}' <<< "$all_box_info")"
+    trim_vals="$(awk -v p="$i" '$1=="Page" && $2==p && $3=="TrimBox:" {print $4" "$5" "$6" "$7; exit}' <<< "$all_box_info")"
     if [[ -z "$media_vals" || -z "$trim_vals" ]]; then
       trim_mismatch="failed to read MediaBox/TrimBox for page $i"
       break
@@ -82,8 +88,12 @@ fi
 page_size_mm="unknown"
 trim_size_mm="unknown"
 if [[ -n "$src_pages" && "$src_pages" -gt 0 ]]; then
-  box_1="$(pdfinfo -f 1 -l 1 -box "$src_pdf")"
-  page_size_mm="$(echo "$box_1" | awk '
+  if [[ -n "$all_box_info" ]]; then
+    box_1="$all_box_info"
+  else
+    box_1="$(pdfinfo_filtered -f 1 -l 1 -box "$src_pdf")"
+  fi
+  page_size_mm="$(awk '
     $1=="Page" && $2==1 && $3=="size:" {
       w_pt=$4+0; h_pt=$6+0;
       w_mm=w_pt*25.4/72.0;
@@ -91,8 +101,8 @@ if [[ -n "$src_pages" && "$src_pages" -gt 0 ]]; then
       printf "%.2f x %.2f mm", w_mm, h_mm;
       exit
     }
-  ')"
-  trim_size_mm="$(echo "$box_1" | awk '
+  ' <<< "$box_1")"
+  trim_size_mm="$(awk '
     $1=="Page" && $2==1 && $3=="TrimBox:" {
       w_pt=($6-$4)+0; h_pt=($7-$5)+0;
       w_mm=w_pt*25.4/72.0;
@@ -100,7 +110,7 @@ if [[ -n "$src_pages" && "$src_pages" -gt 0 ]]; then
       printf "%.2f x %.2f mm", w_mm, h_mm;
       exit
     }
-  ')"
+  ' <<< "$box_1")"
   if [[ -z "$page_size_mm" ]]; then
     page_size_mm="unknown"
   fi
