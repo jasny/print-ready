@@ -78,52 +78,71 @@ def main():
     converted_shading_functions = 0
     with pikepdf.open(pdf_path, allow_overwriting_input=True) as pdf:
         seen = set()
+
+        def rewrite_stream(ref):
+            nonlocal converted_ops, forced_ops
+            try:
+                og = ref.objgen
+                if og in seen:
+                    return
+                seen.add(og)
+                raw = ref.read_bytes()
+            except Exception:
+                return
+
+            cache = {}
+
+            def repl(match):
+                nonlocal converted_ops, forced_ops
+                r = float(match.group("r"))
+                g = float(match.group("g"))
+                b = float(match.group("b"))
+                key = (round(r, 6), round(g, 6), round(b, 6))
+                if key not in cache:
+                    if is_near_black(r, g, b):
+                        cache[key] = (forced_black, True)
+                    else:
+                        img = Image.new("RGB", (1, 1), (int(round(r * 255)), int(round(g * 255)), int(round(b * 255))))
+                        cmyk = ImageCms.profileToProfile(img, srgb_profile, out_profile, outputMode="CMYK")
+                        c, m, y, k = cmyk.getpixel((0, 0))
+                        cache[key] = ((c / 255.0, m / 255.0, y / 255.0, k / 255.0), False)
+                (c, m, y, k), is_forced = cache[key]
+                if is_forced:
+                    forced_ops += 1
+                converted_ops += 1
+                op = b"k" if match.group("op") == b"rg" else b"K"
+                return (
+                    match.group("prefix")
+                    + f"{format_pdf_num(c)} {format_pdf_num(m)} {format_pdf_num(y)} {format_pdf_num(k)} ".encode("ascii")
+                    + op
+                    + match.group("suffix")
+                )
+
+            rewritten = pattern.sub(repl, raw)
+            if rewritten != raw:
+                ref.write(rewritten)
+
+        def rewrite_form_xobjects(resources):
+            if not isinstance(resources, pikepdf.Dictionary):
+                return
+            xobjects = resources.get("/XObject")
+            if not isinstance(xobjects, pikepdf.Dictionary):
+                return
+            for xobject in xobjects.values():
+                if not isinstance(xobject, pikepdf.Stream):
+                    continue
+                if xobject.get("/Subtype") != pikepdf.Name("/Form"):
+                    continue
+                rewrite_stream(xobject)
+                rewrite_form_xobjects(xobject.get("/Resources"))
+
         for page in pdf.pages:
             contents = page.get("/Contents")
-            if contents is None:
-                continue
-            refs = contents if isinstance(contents, pikepdf.Array) else [contents]
-            for ref in refs:
-                try:
-                    og = ref.objgen
-                    if og in seen:
-                        continue
-                    seen.add(og)
-                    raw = ref.read_bytes()
-                except Exception:
-                    continue
-
-                cache = {}
-
-                def repl(match):
-                    nonlocal converted_ops, forced_ops
-                    r = float(match.group("r"))
-                    g = float(match.group("g"))
-                    b = float(match.group("b"))
-                    key = (round(r, 6), round(g, 6), round(b, 6))
-                    if key not in cache:
-                        if is_near_black(r, g, b):
-                            cache[key] = (forced_black, True)
-                        else:
-                            img = Image.new("RGB", (1, 1), (int(round(r * 255)), int(round(g * 255)), int(round(b * 255))))
-                            cmyk = ImageCms.profileToProfile(img, srgb_profile, out_profile, outputMode="CMYK")
-                            c, m, y, k = cmyk.getpixel((0, 0))
-                            cache[key] = ((c / 255.0, m / 255.0, y / 255.0, k / 255.0), False)
-                    (c, m, y, k), is_forced = cache[key]
-                    if is_forced:
-                        forced_ops += 1
-                    converted_ops += 1
-                    op = b"k" if match.group("op") == b"rg" else b"K"
-                    return (
-                        match.group("prefix")
-                        + f"{format_pdf_num(c)} {format_pdf_num(m)} {format_pdf_num(y)} {format_pdf_num(k)} ".encode("ascii")
-                        + op
-                        + match.group("suffix")
-                    )
-
-                rewritten = pattern.sub(repl, raw)
-                if rewritten != raw:
-                    ref.write(rewritten)
+            if contents is not None:
+                refs = contents if isinstance(contents, pikepdf.Array) else [contents]
+                for ref in refs:
+                    rewrite_stream(ref)
+            rewrite_form_xobjects(page.get("/Resources"))
 
         function_seen_cmyk = set()
         function_seen_gray = set()
