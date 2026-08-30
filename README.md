@@ -58,6 +58,16 @@ Each step reads only from earlier steps and writes only to its own folder.
 
 Runs steps 1–11 in order and stops on the first failure. Then runs preflight on both the PDF/X-4 and PDF/X-1a outputs. All script output is streamed to the terminal.
 
+To convert every source PDF that does not yet have a final PDF/X-1a output:
+
+```
+./convert.sh --all
+```
+
+`--all` scans only `00-input/` (not subdirectories). A source is skipped when
+`11-output/<source-base-name>.pdf` already exists; existing output files are
+never overwritten in this mode.
+
 ## Removing converted artifacts
 
 ```
