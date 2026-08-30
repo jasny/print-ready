@@ -375,7 +375,7 @@ These requirements are summarized from New Energy’s Dutch print delivery speci
 - Deep black (typically for covers): **C50 M40 Y40 K100**. Text/line art in body should be **K100 only**.
 - Include **trim marks** on export; keep offsets outside the bleed.
 - Deliver **cPDF** (certified PDF) and export using PDF/X‑4 presets.
-Profile used by default: `/usr/share/color/icc/colord/FOGRA39L_coated.icc` (Coated FOGRA39 / ISO 12647-2:2004).
+Profile used by default: `/usr/share/color/icc/colord/FOGRA39L_coated.icc` (Coated FOGRA39 / ISO 12647-2:2004). Ghostscript converts to CMYK using its built-in conversion; the selected profile is embedded afterwards as the PDF/X output intent.
 
 ## Agent instructions
 

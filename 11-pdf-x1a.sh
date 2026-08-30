@@ -73,8 +73,6 @@ gs \
   -sProcessColorModel=DeviceCMYK \
   -sColorConversionStrategy=CMYK \
   -sColorConversionStrategyForImages=CMYK \
-  -dOverrideICC \
-  -sOutputICCProfile="$color_profile" \
   -dAutoRotatePages=/None \
   -dEmbedAllFonts=true \
   -dSubsetFonts=true \
