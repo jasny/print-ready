@@ -89,11 +89,12 @@ fi
 
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install torch torchvision torchaudio opencv-python pikepdf pillow
+python -m pip install --no-cache-dir torch torchvision torchaudio opencv-python pikepdf pillow cython
 # PyPI Real-ESRGAN first resolves the legacy BasicSR source release, which fails
-# with current setuptools. Install the maintained revision before Real-ESRGAN.
-python -m pip install --upgrade "basicsr @ git+https://github.com/XPixelGroup/BasicSR@8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a"
-python -m pip install --no-deps realesrgan
+# with current setuptools. Do not create an isolated build environment: it would
+# download a second copy of the multi-gigabyte CUDA PyTorch dependencies.
+python -m pip install --no-cache-dir --no-build-isolation --upgrade "basicsr @ git+https://github.com/XPixelGroup/BasicSR@8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a"
+python -m pip install --no-cache-dir --no-deps realesrgan
 
 mkdir -p weights
 if [[ ! -f weights/RealESRGAN_x4plus.pth ]]; then
