@@ -26,6 +26,20 @@ $SUDO apt-get install -y --no-install-recommends \
   python3 \
   python3-venv \
   python3-pip \
+  make \
+  build-essential \
+  libssl-dev \
+  zlib1g-dev \
+  libbz2-dev \
+  libreadline-dev \
+  libsqlite3-dev \
+  libncursesw5-dev \
+  xz-utils \
+  tk-dev \
+  libxml2-dev \
+  libxmlsec1-dev \
+  libffi-dev \
+  liblzma-dev \
   vulkan-tools \
   libvulkan1 \
   liblcms2-2 \
@@ -45,31 +59,32 @@ if ! find "${INSTALL_DIR}" -type f -name realesrgan-ncnn-vulkan -print -quit | g
   $SUDO unzip -q "${tmp_dir}/${REAL_ESRGAN_ZIP}" -d "${INSTALL_DIR}"
 fi
 
-PYTHON_BIN="${PYTHON_BIN:-python3}"
-if ! command -v "$PYTHON_BIN" >/dev/null; then
-  echo "ERROR: Python interpreter '$PYTHON_BIN' was not found." >&2
-  exit 1
+PYENV_ROOT="${PYENV_ROOT:-$HOME/.pyenv}"
+PYENV_RELEASE="${PYENV_RELEASE:-v2.6.12}"
+PYTHON_VERSION="${PYTHON_VERSION:-3.12.12}"
+
+if [[ ! -x "$PYENV_ROOT/bin/pyenv" ]]; then
+  git clone --branch "$PYENV_RELEASE" --depth 1 https://github.com/pyenv/pyenv.git "$PYENV_ROOT"
 fi
 
-python_version="$($PYTHON_BIN -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-case "$python_version" in
-  3.10|3.11|3.12) ;;
-  *)
-    echo "ERROR: Real-ESRGAN's BasicSR dependency supports Python 3.10–3.12; found Python $python_version." >&2
-    echo "Install a supported interpreter, remove .venv, then rerun with e.g. PYTHON_BIN=python3.12 ./install.sh." >&2
-    exit 1
-    ;;
-esac
+pyenv_bin="$PYENV_ROOT/bin/pyenv"
+"$pyenv_bin" install --skip-existing "$PYTHON_VERSION"
+python_bin="$PYENV_ROOT/versions/$PYTHON_VERSION/bin/python"
+if [[ ! -x "$python_bin" ]]; then
+  echo "ERROR: pyenv did not install Python $PYTHON_VERSION." >&2
+  exit 1
+fi
+python_minor="$("$python_bin" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 
 if [[ -d .venv ]]; then
   venv_version="$(.venv/bin/python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-  if [[ "$venv_version" != "$python_version" ]]; then
-    echo "ERROR: .venv uses Python $venv_version, but $PYTHON_BIN uses Python $python_version." >&2
+  if [[ "$venv_version" != "$python_minor" ]]; then
+    echo "ERROR: .venv uses Python $venv_version, but pyenv selected Python $python_minor." >&2
     echo "Remove .venv and rerun the installer to create it with the selected interpreter." >&2
     exit 1
   fi
 else
-  "$PYTHON_BIN" -m venv .venv
+  "$python_bin" -m venv .venv
 fi
 
 . .venv/bin/activate

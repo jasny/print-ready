@@ -4,7 +4,7 @@ This project defines a deterministic, folder-based workflow to convert a PDF exp
 
 The workflow is designed for Linux, fully scriptable, and suitable for execution by an AI agent.
 It is written specifically for Ubuntu LTS; the `install.sh` installer relies on APT and will not work on other systems.
-The AI upscaling dependency currently requires Python 3.10, 3.11, or 3.12; Python 3.13+ is not supported.
+For the legacy AI upscaler, the installer builds Python 3.12.12 with pyenv in `~/.pyenv`; no system Python change is required.
 
 The core principles are:
 
