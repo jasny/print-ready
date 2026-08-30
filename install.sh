@@ -120,6 +120,20 @@ if [[ ! -f "$iso300_dst" ]]; then
   $SUDO install -m 0644 "$iso300_src" "$iso300_dst"
 fi
 
+pso_coated_v3_dst="/usr/share/color/icc/colord/PSOcoated_v3.icc"
+if [[ ! -f "$pso_coated_v3_dst" ]]; then
+  tmp_dir="$(mktemp -d)"
+  zip_path="${tmp_dir}/pso-coated_v3.zip"
+  curl -fL "https://eci.org/lib/exe/pso-coated_v3.zip" -o "$zip_path"
+  unzip -q "$zip_path" -d "$tmp_dir"
+  pso_coated_v3_src="$(find "$tmp_dir" -type f -name 'PSOcoated_v3.icc' -print -quit)"
+  if [[ -z "$pso_coated_v3_src" ]]; then
+    echo "ERROR: PSOcoated_v3.icc not found in downloaded archive" >&2
+    exit 1
+  fi
+  $SUDO install -m 0644 "$pso_coated_v3_src" "$pso_coated_v3_dst"
+fi
+
 BIN_PATH="$(find "${INSTALL_DIR}" -type f -name realesrgan-ncnn-vulkan -print -quit)"
 if [[ -n "${BIN_PATH}" ]]; then
   $SUDO chmod +x "${BIN_PATH}"

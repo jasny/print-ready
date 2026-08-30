@@ -20,6 +20,9 @@ default_output_condition_for_profile() {
     isocoated_v2_300_eci.icc|iso_coated_v2_300_eci.icc)
       echo "ISO Coated v2 300% (ECI)"
       ;;
+    psocoated_v3.icc)
+      echo "PSO Coated v3 (FOGRA51)"
+      ;;
     *)
       echo "${profile_file%.*}"
       ;;
@@ -48,7 +51,7 @@ fi
 out_dir="11-output"
 out_pdf="${out_dir}/${base_name}.pdf"
 
-color_profile="${COLOR_PROFILE:-/usr/share/color/icc/colord/FOGRA39L_coated.icc}"
+color_profile="${COLOR_PROFILE:-/usr/share/color/icc/colord/PSOcoated_v3.icc}"
 if [[ ! -f "$color_profile" ]]; then
   echo "ERROR: ICC profile not found: $color_profile" >&2
   exit 1

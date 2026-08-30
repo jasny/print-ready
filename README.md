@@ -358,7 +358,7 @@ RASTERIZE_DPI=400
 MAX_UPSCALE=4.0
 UPSCALER_MODEL=RealESRGAN_x4plus
 IMAGE_FORMAT=png
-COLOR_PROFILE=/usr/share/color/icc/colord/FOGRA39L_coated.icc
+COLOR_PROFILE=/usr/share/color/icc/colord/PSOcoated_v3.icc
 ```
 
 Each report must log the effective configuration used.
@@ -375,7 +375,7 @@ These requirements are summarized from New Energy’s Dutch print delivery speci
 - Deep black (typically for covers): **C50 M40 Y40 K100**. Text/line art in body should be **K100 only**.
 - Include **trim marks** on export; keep offsets outside the bleed.
 - Deliver **cPDF** (certified PDF) and export using PDF/X‑4 presets.
-Profile used by default: `/usr/share/color/icc/colord/FOGRA39L_coated.icc` (Coated FOGRA39 / ISO 12647-2:2004). Ghostscript converts to CMYK using its built-in conversion; the selected profile is embedded afterwards as the PDF/X output intent.
+Profile used by default: `/usr/share/color/icc/colord/PSOcoated_v3.icc` (PSO Coated v3 / FOGRA51). Ghostscript converts to CMYK using its built-in conversion; the selected profile is embedded afterwards as the PDF/X output intent. Set `COLOR_PROFILE` to use another profile.
 
 ## Agent instructions
 
