@@ -74,6 +74,12 @@ never overwritten in this mode.
 ./remove-converted.sh 00-input/boek.pdf
 ```
 
+To remove artifacts for every top-level PDF in `00-input/`:
+
+```
+./remove-converted.sh --all
+```
+
 Removes all pipeline outputs for the specified input (e.g., folders like `03-extract-images/boek/` and files like `08-replace-images/boek.*`), while keeping the original file in `00-input/`.
 
 ## Naming conventions
