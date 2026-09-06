@@ -10,37 +10,46 @@ usage() {
 remove_converted() {
   local input_pdf="$1"
   local base_name
-  local pattern
-  local targets
-  local matches
-  local to_remove
+  local artifact_dir
+  local -a artifact_dirs
+  local -a directory_targets
+  local -a matches
+  local -a to_remove
 
   base_name="$(basename "$input_pdf")"
   base_name="${base_name%.*}"
 
-  targets=(
-    "01-validate/${base_name}."*
-    "02-analyze-dpi/${base_name}."*
+  artifact_dirs=(
+    "01-validate"
+    "02-analyze-dpi"
+    "08-replace-images"
+    "09-normalize-pdf"
+    "10-pdf-x4"
+    "11-output"
+  )
+  directory_targets=(
     "03-extract-images/${base_name}"
     "04-upscale-images/${base_name}"
     "05-verify-images/${base_name}"
     "06-resize-images/${base_name}"
     "07-resize-smasks/${base_name}"
-    "08-replace-images/${base_name}."*
-    "09-normalize-pdf/${base_name}."*
-    "10-pdf-x4/${base_name}."*
-    "11-output/${base_name}."*
   )
 
   shopt -s nullglob
   to_remove=()
-  for pattern in "${targets[@]}"; do
-    matches=( $pattern )
+  for artifact_dir in "${artifact_dirs[@]}"; do
+    matches=( "${artifact_dir}"/"${base_name}".* )
     if [[ ${#matches[@]} -gt 0 ]]; then
       to_remove+=("${matches[@]}")
     fi
   done
   shopt -u nullglob
+
+  for artifact_dir in "${directory_targets[@]}"; do
+    if [[ -e "$artifact_dir" ]]; then
+      to_remove+=("$artifact_dir")
+    fi
+  done
 
   if [[ ${#to_remove[@]} -eq 0 ]]; then
     echo "Nothing to remove for ${base_name}."
