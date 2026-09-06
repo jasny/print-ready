@@ -1,0 +1,52 @@
+Tekst- en spellingcontrole — 6 september 2026
+================================================
+
+Methode
+-------
+De tekstlagen van de niet-cover-pdf's zijn met pdftotext uitgelezen. De
+lopende tekst is vervolgens handmatig gecontroleerd; mogelijke fouten zijn
+op de gerenderde originele pagina gecontroleerd. Decoratieve koppen, logo's
+en tekst die door vormgeving overlapt, zijn niet als lopende tekst beoordeeld.
+
+Covers
+------
+Niet beoordeeld, conform opdracht: de covers bevatten geen tekst.
+
+Gecontroleerde bestanden
+------------------------
+- VERSIE 2 Boekje Schemas 64.pdf (62 woorden): geen fouten gevonden.
+- VERSIE 3 Boekje Modi 76.pdf (3.518 woorden): 4 correcties nodig.
+- VERSIE 4 De kapitein 40.pdf (811 woorden): 1 correctie nodig.
+- VERSIE 5 Grote Ik-Kleine Ik 60.pdf (1.293 woorden): 3 correcties nodig.
+- Praatkaarten  over Gevoelens, emoties en gedachten.pdf (1.844 woorden):
+  geen fouten gevonden in de leesbare lopende tekst.
+- Sticker kaartenset Grote Ik Kleine Ik 104mm.pdf (26 woorden): geen fouten
+  gevonden in de leesbare lopende tekst.
+- Stickers kaartenset Praatplaten 104mm.pdf (35 woorden): geen fouten
+  gevonden in de leesbare lopende tekst.
+
+Bevestigde correcties
+---------------------
+VERSIE 3 Boekje Modi 76.pdf
+- Pagina 47: "zelfsusserin actie" -> "zelfsusser in actie".
+- Pagina 57: "zelfverheerlijkerje sterker" -> "zelfverheerlijker je sterker".
+- Pagina 69: "Aandachts-en erkenningzoeker" ->
+  "Aandachts- en erkenningzoeker".
+- Pagina 73: "Het helpt je niet te streng te zijn voor jezelf" ->
+  "Het helpt je om niet te streng te zijn voor jezelf".
+
+VERSIE 4 De kapitein 40.pdf
+- Pagina 12: "souveniers" -> "souvenirs".
+
+VERSIE 5 Grote Ik-Kleine Ik 60.pdf
+- Pagina 6: "Iemand is die bij je blijft" -> "Iemand die bij je blijft".
+- Pagina 12: "en je helpt je om weer rustig te worden" ->
+  "en je helpt om weer rustig te worden".
+- Pagina 38: "Als iets niet lukt. Of gebeurt er iets wat jij niet wilt." ->
+  "Als iets niet lukt of als er iets gebeurt wat jij niet wilt,".
+
+Opmerking
+---------
+De uitvoer van pdftotext splitst of verdubbelt soms tekst in decoratieve
+elementen. Zulke extractie-artefacten zijn niet als fouten in de pdf
+geregistreerd.
