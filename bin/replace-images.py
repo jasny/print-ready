@@ -2,6 +2,7 @@
 import re
 import subprocess
 import sys
+from math import hypot
 from pathlib import Path
 
 import pikepdf
@@ -36,7 +37,67 @@ def visible_bounds(image_path: Path):
         return None
 
 
-def build_form_from_eps(dest_pdf: pikepdf.Pdf, eps_path: Path, bounds=None):
+def multiply_matrix(left, right):
+    return [
+        left[0] * right[0] + left[2] * right[1],
+        left[1] * right[0] + left[3] * right[1],
+        left[0] * right[2] + left[2] * right[3],
+        left[1] * right[2] + left[3] * right[3],
+        left[0] * right[4] + left[2] * right[5] + left[4],
+        left[1] * right[4] + left[3] * right[5] + left[5],
+    ]
+
+
+def placement_scales(pdf: pikepdf.Pdf, target_objgen):
+    """Return the page-space width and height of an XObject's unit square."""
+    identity = [1, 0, 0, 1, 0, 0]
+    placements = []
+
+    def walk(container, ctm, ancestors):
+        objgen = container.objgen
+        if objgen in ancestors:
+            return
+        resources = container.get("/Resources", {})
+        xobjects = resources.get("/XObject", {})
+        current = ctm[:]
+        stack = []
+        for operands, operator in pikepdf.parse_content_stream(container):
+            op = str(operator)
+            if op == "q":
+                stack.append(current[:])
+            elif op == "Q":
+                if stack:
+                    current = stack.pop()
+            elif op == "cm":
+                current = multiply_matrix(current, [float(value) for value in operands])
+            elif op == "Do":
+                child = xobjects.get(operands[0])
+                if child is None:
+                    continue
+                if child.objgen == target_objgen:
+                    placements.append(current[:])
+                    continue
+                if child.get("/Subtype") == pikepdf.Name("/Form"):
+                    form_matrix = child.get("/Matrix", identity)
+                    walk(child, multiply_matrix(current, [float(value) for value in form_matrix]), ancestors | {objgen})
+
+    for page in pdf.pages:
+        walk(page, identity, set())
+
+    if not placements:
+        raise RuntimeError(f"could not find PDF placement for object {target_objgen}")
+    if len(placements) != 1:
+        raise RuntimeError(f"expected one PDF placement for object {target_objgen}, found {len(placements)}")
+
+    a, b, c, d, _, _ = placements[0]
+    width = hypot(a, b)
+    height = hypot(c, d)
+    if width <= 0 or height <= 0:
+        raise RuntimeError(f"invalid PDF placement for object {target_objgen}")
+    return width, height
+
+
+def build_form_from_eps(dest_pdf: pikepdf.Pdf, eps_path: Path, bounds=None, placement=None):
     eps_pdf = eps_path.with_suffix(".tmp.pdf")
     try:
         subprocess.run(
@@ -69,6 +130,9 @@ def build_form_from_eps(dest_pdf: pikepdf.Pdf, eps_path: Path, bounds=None):
             if bounds is None:
                 return imported
 
+            if placement is None:
+                raise RuntimeError(f"missing PDF placement for barcode replacement: {eps_path}")
+
             image_width, image_height, (left, top, right, bottom) = bounds
             panel_width = right - left
             panel_height = bottom - top
@@ -76,12 +140,19 @@ def build_form_from_eps(dest_pdf: pikepdf.Pdf, eps_path: Path, bounds=None):
                 return imported
 
             # The image coordinate system starts at the top left, while PDF
-            # coordinates start at the bottom left.  Wrap the tightly cropped
-            # EPS in a unit-square form at the original panel position.
-            scale_x = panel_width / image_width
-            scale_y = panel_height / image_height
-            translate_x = left / image_width
-            translate_y = (image_height - bottom) / image_height
+            # coordinates start at the bottom left.  Fit the EPS uniformly
+            # inside the original visible panel: do not stretch it to fill a
+            # panel with a different aspect ratio.
+            placement_width, placement_height = placement
+            panel_width_pt = placement_width * panel_width / image_width
+            panel_height_pt = placement_height * panel_height / image_height
+            fit_scale = min(panel_width_pt / w, panel_height_pt / h)
+            eps_width_pt = w * fit_scale
+            eps_height_pt = h * fit_scale
+            scale_x = eps_width_pt / placement_width
+            scale_y = eps_height_pt / placement_height
+            translate_x = left / image_width + (panel_width_pt - eps_width_pt) / (2 * placement_width)
+            translate_y = (image_height - bottom) / image_height + (panel_height_pt - eps_height_pt) / (2 * placement_height)
             wrapper = dest_pdf.make_stream(
                 (
                     "q\n"
@@ -163,7 +234,12 @@ def main():
 
             if img_path.suffix.lower() == ".eps":
                 source_image = Path("03-extract-images") / base_name / f"obj-{obj_id}-{gen}.png"
-                form_xobj = build_form_from_eps(pdf, img_path, visible_bounds(source_image))
+                form_xobj = build_form_from_eps(
+                    pdf,
+                    img_path,
+                    visible_bounds(source_image),
+                    placement_scales(pdf, obj.objgen),
+                )
                 obj.Type = pikepdf.Name("/XObject")
                 obj.Subtype = pikepdf.Name("/Form")
                 obj.FormType = 1
