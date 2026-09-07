@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 import pikepdf
-from pikepdf import Array
+from pikepdf import Array, Dictionary, Name
 from PIL import Image
 
 
@@ -17,7 +17,26 @@ def usage():
     eprint("Usage: replace-images.py <input-pdf>")
 
 
-def build_form_from_eps(dest_pdf: pikepdf.Pdf, eps_path: Path):
+def visible_bounds(image_path: Path):
+    """Return the non-black rectangle in an extracted image, if it has one.
+
+    Extracted barcode images use black pixels outside their soft mask.  The
+    non-black rectangle is therefore the visible white barcode panel that the
+    EPS replacement must occupy; using the complete image rectangle would
+    discard its transparent margins.
+    """
+    try:
+        with Image.open(image_path) as source:
+            image = source.convert("RGB")
+            bounds = image.getbbox()
+            if bounds is None:
+                return None
+            return image.width, image.height, bounds
+    except Exception:
+        return None
+
+
+def build_form_from_eps(dest_pdf: pikepdf.Pdf, eps_path: Path, bounds=None):
     eps_pdf = eps_path.with_suffix(".tmp.pdf")
     try:
         subprocess.run(
@@ -46,7 +65,43 @@ def build_form_from_eps(dest_pdf: pikepdf.Pdf, eps_path: Path):
             h = max(0.001, float(bbox[3]) - float(bbox[1]))
             # Make form behave like an image XObject (unit-square semantics).
             imported.Matrix = Array([1.0 / w, 0, 0, 1.0 / h, 0, 0])
-            return imported
+
+            if bounds is None:
+                return imported
+
+            image_width, image_height, (left, top, right, bottom) = bounds
+            panel_width = right - left
+            panel_height = bottom - top
+            if image_width <= 0 or image_height <= 0 or panel_width <= 0 or panel_height <= 0:
+                return imported
+
+            # The image coordinate system starts at the top left, while PDF
+            # coordinates start at the bottom left.  Wrap the tightly cropped
+            # EPS in a unit-square form at the original panel position.
+            scale_x = panel_width / image_width
+            scale_y = panel_height / image_height
+            translate_x = left / image_width
+            translate_y = (image_height - bottom) / image_height
+            wrapper = dest_pdf.make_stream(
+                (
+                    "q\n"
+                    f"{scale_x:.12f} 0 0 {scale_y:.12f} "
+                    f"{translate_x:.12f} {translate_y:.12f} cm\n"
+                    "/Barcode Do\n"
+                    "Q\n"
+                ).encode("ascii")
+            )
+            wrapper.Type = Name("/XObject")
+            wrapper.Subtype = Name("/Form")
+            wrapper.FormType = 1
+            wrapper.BBox = Array([0, 0, 1, 1])
+            wrapper.Matrix = Array([1, 0, 0, 1, 0, 0])
+            xobjects = Dictionary()
+            xobjects[Name("/Barcode")] = imported
+            resources = Dictionary()
+            resources[Name("/XObject")] = xobjects
+            wrapper.Resources = resources
+            return wrapper
     finally:
         try:
             eps_pdf.unlink(missing_ok=True)
@@ -107,7 +162,8 @@ def main():
                 continue
 
             if img_path.suffix.lower() == ".eps":
-                form_xobj = build_form_from_eps(pdf, img_path)
+                source_image = Path("03-extract-images") / base_name / f"obj-{obj_id}-{gen}.png"
+                form_xobj = build_form_from_eps(pdf, img_path, visible_bounds(source_image))
                 obj.Type = pikepdf.Name("/XObject")
                 obj.Subtype = pikepdf.Name("/Form")
                 obj.FormType = 1
