@@ -312,6 +312,34 @@ Set print trim and bleed boxes. Uses a 3 mm trim inset by default.
 10-pdf-x4/boek.trim.txt
 ```
 
+### Crop a normalized PDF
+
+To make a different final page size without running image analysis or
+upscaling again, crop an existing normalized PDF. Dimensions and optional
+offsets are in millimetres. The requested dimensions are the final trim size;
+the script retains 3 mm bleed on each side by default.
+
+```
+./09-crop-pdf.sh 09-normalize-pdf/boek.pdf 210 297
+```
+
+This writes `09-normalize-pdf/boek-cropped.pdf` and a crop report. Run the
+cropped file through steps 10 and 11 to create a fresh PDF/X-1a output:
+
+```
+./10-set-trim.sh 09-normalize-pdf/boek-cropped.pdf
+./11-pdf-x1a.sh 10-pdf-x4/boek-cropped.pdf
+./preflight.sh 11-output/boek-cropped.pdf
+```
+
+Set `BLEED_MM` to use a different bleed. To shift the crop from the page
+centre, provide horizontal and vertical offsets; positive values move it right
+and up:
+
+```
+BLEED_MM=5 ./09-crop-pdf.sh 09-normalize-pdf/boek.pdf 210 297 2 -1
+```
+
 ### 11-output
 
 **Purpose**
