@@ -320,7 +320,7 @@ offsets are in millimetres. The requested dimensions are the final trim size;
 the script retains 3 mm bleed on each side by default.
 
 ```
-./09-crop-pdf.sh 09-normalize-pdf/boek.pdf 210 297
+./crop-pdf.sh 09-normalize-pdf/boek.pdf 210 297
 ```
 
 This writes `09-normalize-pdf/boek-cropped.pdf` and a crop report. Run the
@@ -337,7 +337,7 @@ centre, provide horizontal and vertical offsets; positive values move it right
 and up:
 
 ```
-BLEED_MM=5 ./09-crop-pdf.sh 09-normalize-pdf/boek.pdf 210 297 2 -1
+BLEED_MM=5 ./crop-pdf.sh 09-normalize-pdf/boek.pdf 210 297 2 -1
 ```
 
 ### 11-output
